@@ -1,0 +1,51 @@
+ATM alterations by histology
+  LUAD: n = 4,064; ATM-altered (any) 311 (7.7%); ATM-truncated 120 (3.0%)
+  LUSC: n = 537; ATM-altered (any) 22 (4.1%); ATM-truncated 3 (0.6%)
+  LUAD vs LUSC, any alteration: Fisher p = 0.0019
+  LUAD vs LUSC, truncating: Fisher p = 0.0003
+
+LUAD by sample type / site (any / truncating)
+  Metastasis: n = 1,585; any 8.5%; truncating 3.3%
+  Primary: n = 2,479; any 7.1%; truncating 2.7%
+  primary vs metastasis, any: Fisher p = 0.10
+  primary vs metastasis, truncating: Fisher p = 0.34
+  Adrenal: n = 50; any 12.0%; truncating 0.0%
+  Bone: n = 188; any 10.1%; truncating 4.8%
+  Brain: n = 174; any 9.8%; truncating 3.4%
+  Liver: n = 139; any 7.9%; truncating 3.6%
+  Lymph node: n = 579; any 9.7%; truncating 4.3%
+  Other: n = 195; any 6.7%; truncating 2.6%
+  Pleura: n = 260; any 5.0%; truncating 0.8%
+  Primary: n = 2479; any 7.1%; truncating 2.7%
+
+Co-alterations in LUAD (vs. ATM wild-type)
+  ATM wild-type n = 3,753; ATM-altered n = 311; ATM-truncated n = 120
+  KRAS mutation      ATM-truncated   71.7% vs  30.7%  OR 5.71 (3.82-8.55)  p = 1.5e-19
+  KRAS mutation      ATM-altered     57.9% vs  30.7%  OR 3.10 (2.45-3.93)  p = 3.1e-21
+  STK11 mutation     ATM-truncated   39.2% vs  14.8%  OR 3.71 (2.54-5.41)  p = 1.6e-10
+  STK11 mutation     ATM-altered     27.0% vs  14.8%  OR 2.13 (1.63-2.78)  p = 1.0e-07
+  KEAP1 mutation     ATM-truncated   15.8% vs  13.6%  OR 1.19 (0.72-1.96)  p = 5.0e-01
+  KEAP1 mutation     ATM-altered     15.8% vs  13.6%  OR 1.18 (0.86-1.63)  p = 3.0e-01
+  TP53 mutation      ATM-truncated   25.8% vs  48.4%  OR 0.37 (0.25-0.56)  p = 9.5e-07
+  TP53 mutation      ATM-altered     34.4% vs  48.4%  OR 0.56 (0.44-0.71)  p = 2.0e-06
+  EGFR mutation      ATM-truncated    5.8% vs  27.8%  OR 0.16 (0.07-0.35)  p = 2.0e-09
+  EGFR mutation      ATM-altered      8.4% vs  27.8%  OR 0.24 (0.16-0.36)  p = 2.3e-16
+  BRAF mutation      ATM-truncated    2.5% vs   3.6%  OR 0.68 (0.21-2.17)  p = 8.0e-01
+  BRAF mutation      ATM-altered      1.9% vs   3.6%  OR 0.52 (0.23-1.19)  p = 1.5e-01
+  MET exon 14        ATM-truncated    0.8% vs   3.4%  OR 0.24 (0.03-1.75)  p = 1.9e-01
+  MET exon 14        ATM-altered      1.0% vs   3.4%  OR 0.28 (0.09-0.89)  p = 1.7e-02
+  PIK3CA mutation    ATM-truncated    2.5% vs   4.2%  OR 0.58 (0.18-1.84)  p = 4.9e-01
+  PIK3CA mutation    ATM-altered      2.6% vs   4.2%  OR 0.60 (0.29-1.23)  p = 1.8e-01
+  MET amplification  ATM-truncated    1.7% vs   2.2%  OR 0.75 (0.18-3.08)  p = 1.0e+00
+  MET amplification  ATM-altered      1.9% vs   2.2%  OR 0.87 (0.38-2.01)  p = 1.0e+00
+  CDKN2A deletion    ATM-truncated    8.3% vs  11.1%  OR 0.73 (0.38-1.40)  p = 4.6e-01
+  CDKN2A deletion    ATM-altered      8.7% vs  11.1%  OR 0.76 (0.51-1.15)  p = 2.2e-01
+
+Tumour mutational burden (non-synonymous mutations per Mb)
+  median: wild-type 4.9; ATM-altered 9.5; ATM-truncated 8.2; Mann-Whitney U (altered vs wild-type) p = 2.4e-45
+
+Overall survival from sequencing (LUAD)
+  wt: n = 3,733; events = 1562; median OS = 40.8 months
+  missense: n = 189; events = 86; median OS = 38.1 months
+  truncated: n = 119; events = 56; median OS = 29.5 months
+  log-rank vs wild-type: any alteration p = 0.096; truncated p = 0.129; n with follow-up = 4,041
