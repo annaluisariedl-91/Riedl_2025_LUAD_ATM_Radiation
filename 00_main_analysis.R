@@ -1,46 +1,60 @@
-#saving directory
-save_wd <- paste("C:/Users/annar/Desktop/Codes+Data/r codes/test")
-#loading codes
-source_wd <- paste("C:/Users/annar/Desktop/Codes+Data/r codes")
-#loading functional assays
-functionalAssays_wd <- paste("C:/Users/annar/Desktop/Codes+Data/r codes/test")
-#loading proteome data
-proteome_wd <- paste("C:/Users/annar/Desktop/Codes+Data/r codes")
-## main_analysis.R
-setwd("C:/Users/annar/Desktop/Codes+Data/r codes")
-# 1. Setup
+#------------------------------------------
+# generating directories # chose path in your own directory
+#------------------------------------------
+base_dir <- "C:/Users/annar/Paper_Thesis/Codes+Data"
+
+dirs <- list(
+  code       = file.path(base_dir, "r codes"),
+  RNA        = file.path(base_dir, "GEO"),
+  proteome   = file.path(base_dir, "Pride", "results"),
+  data       = file.path(base_dir, "data"),
+  results    = file.path(base_dir, "results"),
+  plots      = file.path(base_dir, "results", "plots")
+)
+
+dir.create(dirs$results, recursive = TRUE, showWarnings = FALSE)
+dir.create(dirs$plots, recursive = TRUE, showWarnings = FALSE)
+
+setwd(dirs$code)
+#------------------------------------------
+# loading parts of analysis
+#------------------------------------------
+#1. Setup
 source("01_importing_packages.R")
-source("02_importing_data.R")
+source("02_defining functions.R")
+source("03_importing_data.R")
 
-# 2. Analysis of functional assays
-source("03_CFA_8Gy.R")
-source("04_CFA_2Gy.R")
-source("05_CFA_AZD1390_HCC44_H23.R")
-source("06_CFA_AZD1390_other.R")
-source("07_xcelligence_growth.R")
-source("08_xcelligence_ATMinhibition.R")
-source("09_MTS_DoseResponse.R")
-source("10_MTS_ATMinhibition.R")
-source("11_MTS_IC50_AZD1390.R")
-source("12_wb_ATM.R")
+#2. Analysis of functional assays
+source("04_CFA_8Gy.R")
+source("05_CFA_2Gy.R")
+source("06_CFA_AZD1390_HCC44_H23.R")
+source("07_CFA_AZD1390_other.R")
 
-# 3. Analysis of Transcriptome data
-source("13_RNA_calc_DE.R")
-source("14_RNA_qc.R")
-source("15_RNA_Vulcano_Top10.R")
+source("08_xcelligence_growth.R")
+source("09_xcelligence_ATMinhibition.R")
 
-# 4. Analysis of Proteome data
-source("16_protein_calc_DE.R")
-source("17_protein_qc.R")
-source("18_protein_control_Vulcano_Top10.R")
-source("19_protein_Radiation_Vulcano_Top10.R")
-source("20_protein_HCC44_Vulcano_Top10.R")
-source("21_protein_H23_Vulcano_Top10.R")
+source("10_MTS_DoseResponse.R")
+source("11_MTS_ATMinhibition.R")
+source("12_MTS_IC50_AZD1390.R")
 
-# 5. Transcriptome vs Proteome
-source("22_correlation_plot.R")
+source("13_WesternBlot_ATM.R")
 
-# 6. Temporal Expression Pattern
-source("23_protein_splineRegression.R")
-setwd(source_wd)
-source("24_protein_ORA.R")
+#3. Calculation of differetial expression
+source("14_Transcriptome_DifferentialExpression.R")
+source("15_Proteome_DifferentialExpression.R")
+
+#4. Transcriptome vs Proteome
+source("16_Proteom_Transcriptome_Correlation.R")
+
+#5. Quality analysis of Transcriptome data
+source("17_Transcriptome_QualityControl.R")
+source("18_Transcriptome_Volcano_top10.R")
+
+#6. Analysis of Proteome data
+source("19_Proteome_QualityControl.R")
+source("20_Proteome_Volcano_top10.R")
+
+#7. Temporal Expression Pattern
+source("21_Proteome_SplineRegression.R")
+source("22_Proteome_OverrepresentationAnalysis.R")
+source("23_protein_ProteinProteinInteraction.R")
