@@ -14,29 +14,36 @@ Codes+Data/
 ├── r codes/
 │   ├── 00_main_analysis.R
 │   ├── 01_importing_packages.R
-│   ├── 02_importing_data.R
-│   ├── 03_CFA_8Gy.R
-│   ├── 04_CFA_2Gy.R
-│   ├── 05_CFA_AZD1390_HCC44_H23.R
-│   ├── 06_CFA_AZD1390_other.R
-│   ├── 07_xcelligence_growth.R
-│   ├── 08_xcelligence_ATMinhibition.R
-│   ├── 09_MTS_DoseResponse.R
-│   ├── 10_MTS_ATMinhibition.R
-│   ├── 11_MTS_IC50_AZD1390.R
-│   ├── 12_wb_ATM.R
-│   ├── 13_RNA_calc_DE.R
-│   ├── 14_RNA_qc.R
-│   ├── 15_RNA_Vulcano_Top10.R
-│   ├── 16_protein_calc_DE.R
-│   ├── 17_protein_qc.R
-│   ├── 18_protein_control_Vulcano_Top10.R
-│   ├── 19_protein_Radiation_Vulcano_Top10.R
-│   ├── 20_protein_HCC44_Vulcano_Top10.R
-│   ├── 21_protein_H23_Vulcano_Top10.R
-│   ├── 22_correlation_plot.R
-│   ├── 23_protein_splineRegression.R
-│   └── 24_protein_ORA.R
+│   ├── 02_defining functions.R
+│   ├── 03_importing_data.R
+│   ├── 04_CFA_8Gy.R
+│   ├── 05_CFA_2Gy.R
+│   ├── 06_CFA_AZD1390_HCC44_H23.R
+│   ├── 07_CFA_AZD1390_other.R
+│   ├── 08_xcelligence_growth.R
+│   ├── 09_xcelligence_ATMinhibition.R
+│   ├── 10_MTS_DoseResponse.R
+│   ├── 11_MTS_ATMinhibition.R
+│   ├── 12_MTS_IC50_AZD1390.R
+│   ├── 13_WesternBlot_ATM.R
+│   ├── 14_Transcriptome_DifferentialExpression.R
+│   ├── 15_Proteome_DifferentialExpression.R
+│   ├── 16_Proteom_Transcriptome_Correlation.R
+│   ├── 17_Transcriptome_QualityControl.R
+│   ├── 18_Transcriptome_Volcano_top10.R
+│   ├── 19_Proteome_QualityControl.R
+│   ├── 20_Proteome_Volcano_top10.R
+│   ├── 21_Proteome_SplineRegression.R
+│   ├── 22_Proteome_OverrepresentationAnalysis.R
+│   ├── 23_protein_ProteinProteinInteraction.R
+│   └── 24_clinical data_cohort_analysis
+|       ├── requirements
+|       ├── README
+|       ├── msk_met_atm_analysis
+|       ├── data
+|       |   ├── ATM_MSK-MET_lung_extract.csv
+|       |   └── ATM_MSK-MET_variants.csv
+|       └── results  
 └── test/                # example outputs or intermediate results
 ```
 
@@ -44,86 +51,194 @@ Codes+Data/
 
 ## ⚙️ Setup
 
-**Working directories:**
-```r
-# set save / source paths
-save_wd      <- "C:/Users/annar/Desktop/Codes+Data/r codes/test"
-source_wd    <- "C:/Users/annar/Desktop/Codes+Data/r codes"
-```
+base_dir <- "C:/Users/annar/Paper_Thesis/Codes+Data"
 
-All file paths are currently local (`C:/Users/...`).  
-For public repositories, please use relative paths or environment variables 
-(e.g. `here::here()` or `Sys.getenv("PROJECT_DIR")`).
+dirs <- list(
+  code       = file.path(base_dir, "r codes"),
+  RNA        = file.path(base_dir, "GEO"),
+  proteome   = file.path(base_dir, "Pride", "results"),
+  data       = file.path(base_dir, "data"),
+  results    = file.path(base_dir, "results"),
+  plots      = file.path(base_dir, "results", "plots")
+)
 
----
+dir.create(dirs$results, recursive = TRUE, showWarnings = FALSE)
+dir.create(dirs$plots, recursive = TRUE, showWarnings = FALSE)
+
+setwd(dirs$code)
 
 ## 🧠 Analysis Workflow
 
-### **1. Setup and Data Import**
-```r
-source("01_importing_packages.R")  # installs/loads all required R packages
-source("02_importing_data.R")      # imports metadata, design matrices and datasets
-```
+#1. Setup
+source("01_importing_packages.R")
+source("02_defining functions.R")
+source("03_importing_data.R")
 
-### **2. Functional Assays**
-```r
-source("03_CFA_8Gy.R")             # clonogenic assay – 8 Gy dose response
-source("04_CFA_2Gy.R")             # clonogenic assay – 2 Gy response
-source("05_CFA_AZD1390_HCC44_H23.R") 
-source("06_CFA_AZD1390_other.R")   # AZD1390 effects across other LUAD lines
-source("07_xcelligence_growth.R")  # impedance-based growth curves
-source("08_xcelligence_ATMinhibition.R")  # ATM inhibitor ± irradiation
-source("09_MTS_DoseResponse.R")    # metabolic dose response (MTS)
-source("10_MTS_ATMinhibition.R")   # MTS ± AZD1390
-source("11_MTS_IC50_AZD1390.R")    # IC50 determination for AZD1390
-source("12_wb_ATM.R")              # Western blot ATM quantification
-```
+#2. Analysis of functional assays
+source("04_CFA_8Gy.R")
+source("05_CFA_2Gy.R")
+source("06_CFA_AZD1390_HCC44_H23.R")
+source("07_CFA_AZD1390_other.R")
 
-### **3. Transcriptome (RNA-seq)**
-```r
-source("13_RNA_calc_DE.R")         # differential expression analysis
-source("14_RNA_qc.R")              # quality control
-source("15_RNA_Vulcano_Top10.R")   # volcano plots and top genes
-```
+source("08_xcelligence_growth.R")
+source("09_xcelligence_ATMinhibition.R")
 
-### **4. Proteome**
-```r
-source("16_protein_calc_DE.R")     # differential protein expression (Protti)
-source("17_protein_qc.R")          # QC of proteomics data
-source("18_protein_control_Vulcano_Top10.R")
-source("19_protein_Radiation_Vulcano_Top10.R")
-source("20_protein_HCC44_Vulcano_Top10.R")
-source("21_protein_H23_Vulcano_Top10.R")
-```
+source("10_MTS_DoseResponse.R")
+source("11_MTS_ATMinhibition.R")
+source("12_MTS_IC50_AZD1390.R")
 
-### **5. Correlation and Integration**
-```r
-source("22_correlation_plot.R")    # transcriptome vs proteome correlation
-```
+source("13_WesternBlot_ATM.R")
 
-### **6. Temporal Expression and ORA**
-```r
-source("23_protein_splineRegression.R")  # spline modeling of protein time courses
-source("24_protein_ORA.R")               # over-representation analysis (pathways)
-```
+#3. Calculation of differetial expression
+source("14_Transcriptome_DifferentialExpression.R")
+source("15_Proteome_DifferentialExpression.R")
 
----
+#4. Transcriptome vs Proteome
+source("16_Proteom_Transcriptome_Correlation.R")
+
+#5. Quality analysis of Transcriptome data
+source("17_Transcriptome_QualityControl.R")
+source("18_Transcriptome_Volcano_top10.R")
+
+#6. Analysis of Proteome data
+source("19_Proteome_QualityControl.R")
+source("20_Proteome_Volcano_top10.R")
+
+#7. Temporal Expression Pattern
+source("21_Proteome_SplineRegression.R")
+source("22_Proteome_OverrepresentationAnalysis.R")
+source("23_protein_ProteinProteinInteraction.R")
 
 ## 📦 Required Packages
-Typical dependencies (specified in `01_importing_packages.R`):
-```
-tidyverse, ggplot2, DESeq2, clusterProfiler, limma, edgeR, cowplot,
-pheatmap, ggpubr, readxl, openxlsx, RColorBrewer, here, data.table,
-msigdbr, splines, nlme, ggpmisc
-```
+cran_packages <- c(
+  "broom",
+  "corrplot",
+  "data.table",
+  "drc",
+  "dplyr",
+  "emmeans",
+  "factoextra",
+  "forcats",
+  "fpc",
+  "ggplot2",
+  "ggprism",
+  "ggraph",
+  "gprofiler2",
+  "gridExtra",
+  "HGNChelper",
+  "Hmisc",
+  "httr",
+  "igraph",
+  "jsonlite",
+  "lme4",
+  "lmerTest",
+  "Matrix",
+  "minpack.lm",
+  "nlme",
+  "patchwork",
+  "pheatmap",
+  "pracma",
+  "purrr",
+  "RColorBrewer",
+  "readr",
+  "rrvgo",
+  "stringr",
+  "survminer",
+  "tibble",
+  "tidygraph",
+  "tidyr",
+  "VennDiagram",
+  "viridis"
+)
 
-Install them via:
-```r
-source("01_importing_packages.R")
-```
+# Bioconductor-Packages
+bioc_packages <- c(
+  "AnnotationDbi",
+  "clusterProfiler",
+  "DOSE",
+  "EnhancedVolcano",
+  "genefilter",
+  "Homo.sapiens",
+  "limma",
+  "msigdbr",
+  "protti",
+  "STRINGdb"
+)
 
----
+missing_cran <- setdiff(
+  cran_packages,
+  rownames(installed.packages())
+)
+if (length(missing_cran) > 0) {
+  install.packages(missing_cran)
+}
+if (!requireNamespace("BiocManager", quietly = TRUE)) {
+  install.packages("BiocManager")
+}
+missing_bioc <- setdiff(
+  bioc_packages,
+  rownames(installed.packages())
+)
+if (length(missing_bioc) > 0) {
+  BiocManager::install(missing_bioc, ask = FALSE)
+}
+#------------------------------------------
+# Loading packages
+#------------------------------------------
+library(AnnotationDbi)
+library(data.table)
+library(dplyr)
+library(forcats)
+library(HGNChelper)
+library(Homo.sapiens)
+library(purrr)
+library(readr)
+library(stringr)
+library(tibble)
+library(tidyr)
 
+# Statistical analysis
+library(broom)
+library(drc)
+library(emmeans)
+library(limma)
+library(lme4)
+library(lmerTest)
+library(minpack.lm)
+library(nlme)
+library(splines)
+
+# Proteomics and enrichment
+library(clusterProfiler)
+library(DOSE)
+library(EnhancedVolcano)
+library(gprofiler2)
+library(msigdbr)
+library(protti)
+library(rrvgo)
+
+# Clustering and networks
+library(factoextra)
+library(fpc)
+library(ggraph)
+library(igraph)
+library(pheatmap)
+library(STRINGdb)
+library(tidygraph)
+
+# Visualization
+library(corrplot)
+library(ggplot2)
+library(ggprism)
+library(gridExtra)
+library(patchwork)
+library(RColorBrewer)
+library(VennDiagram)
+library(viridis)
+
+# Survival analysis
+library(survival)
+library(survminer)
 ## 🧾 Output
 All generated plots, processed data, and results are saved under:
 ```
