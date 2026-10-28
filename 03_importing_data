@@ -1,0 +1,83 @@
+#------------------------------------------
+# loading raw transcriptome data
+#------------------------------------------
+setwd(file.path(base_dir, "GEO")) #replace with path on your PC
+
+Rdata <- read.delim("NormData_Bohnenberger.csv") %>%
+  mutate(ID = row_number())
+
+Rdata <- bind_cols(
+  Rdata,
+  checkGeneSymbols(Rdata[[2]])
+)
+
+Rdata[, 9:23][Rdata[, 9:23] == 0] <- NA
+#------------------------------------------
+# 2. Proteomdaten einlesen
+#------------------------------------------
+proteome_data <- read.delim(
+  file.path(dirs$proteome, "Intensities_all.csv"),
+  dec = ","
+)
+
+proteome_data[7:90] <- lapply(
+  proteome_data[7:90],
+  as.numeric
+)
+#------------------------------------------
+# 3. UniProt-Annotation
+#------------------------------------------
+protein_genes <- proteome_data %>%
+  dplyr::select(PG.Genes) %>%
+  tidyr::separate_rows(PG.Genes, sep = ";") %>%
+  dplyr::mutate(
+    PG.Genes = trimws(PG.Genes)
+  ) %>%
+  dplyr::filter(
+    !is.na(PG.Genes),
+    PG.Genes != ""
+  ) %>%
+  dplyr::distinct()
+
+# 2. Annotation over Gene symbols
+protein_annotation <- AnnotationDbi::select(
+  Homo.sapiens,
+  keys = protein_genes$PG.Genes,
+  keytype = "SYMBOL",
+  columns = c("SYMBOL", "UNIPROT", "ENTREZID", "ENSEMBL")
+)
+
+# 3. Combine Annotation with Proteom data
+proteome_data <- proteome_data %>%
+  dplyr::mutate(
+    ProteinKey = as.character(dplyr::row_number())
+  ) %>%
+  tidyr::separate_rows(PG.Genes, sep = ";") %>%
+  dplyr::mutate(
+    PG.Genes = trimws(PG.Genes)
+  ) %>%
+  dplyr::left_join(
+    protein_annotation,
+    by = c("PG.Genes" = "SYMBOL")
+  ) %>%
+  dplyr::distinct(ProteinKey, .keep_all = TRUE
+  ) %>%
+  mutate(
+    SYMBOL = PG.Genes
+  )
+
+annotation<- proteome_data[,91:95]
+#------------------------------------------
+# 4. Log2-Transformation
+#------------------------------------------
+setwd(file.path(dirs$results)) 
+proteome_data_log <- proteome_data %>%
+  mutate(across(7:90, log2))
+
+write.csv(
+  proteome_data_log,
+  "intensities_log2transformed.csv",
+  row.names = FALSE
+)
+#-----------------------------------------------
+setwd(dirs$code)
