@@ -1,20 +1,20 @@
 #-------------------------------------------
-# loading or renaming data, preparing colors
+# loading or renaming data
 #------------------------------------------
 load_stat_data_R(
   file.path(dirs$results, "14_Transcriptome_DifferentialExpression"),
   mode = "ready"
 )
 
-RH23_24h   <- load_RNA("H23", "24h")
-RHCC44_24h <- load_RNA("HCC44", "24h")
-mean_pHCC44_24h <- load_prot_mean("HCC44", "24h")
-mean_pH23_24h <- load_prot_mean("H23", "24h")
+RNA_RH23_24h   <- load_RNA("H23", "24h")
+RNA_RHCC44_24h <- load_RNA("HCC44", "24h")
 
 setwd(file.path(dirs$RNA))
-RPKM<- data.frame(read.csv("RPKM_Bohnenberger.csv"))
-TPM<- data.frame(read.csv("TPM_Bohnenberger.csv"))
-
+RNA_RPKM<- data.frame(read.csv("RPKM_Bohnenberger.csv"))
+RNA_TPM<- data.frame(read.csv("TPM_Bohnenberger.csv"))
+#-------------------------------------------
+# defining colors
+#------------------------------------------
 RPKM_colours <- c("#872111","#EA4025","#F09837","#5F8F29","#3F8D27","#4294F7")
 
 RNA_colours <- c(
@@ -24,10 +24,10 @@ RNA_colours <- c(
   "NCI-H23 2 Gy"  ="#F09837")
 
 venn_colours <- c(
-  "#5F8F29",
-  "#F09837",
   "#4294F7",
-  "#EA4025"
+  "#EA4025",
+  "#5F8F29",
+  "#F09837"
 )
 
 ann_colors <- list(
@@ -47,11 +47,11 @@ heatmap_colors <- rev(
   )(100)
 )
 #--------------------------------------------
-# Transcriptome - Boxplot Intensity
+# Violin plot of Intensities
 #--------------------------------------------
-RNA_box_HCC44.H23_24h <- cbind(
-  RH23_24h[,c(1:2,5:11)],
-  RHCC44_24h[, 5:12]
+RNA_intensity_HCC44_H23_24h <- cbind(
+  RNA_RH23_24h[,c(1:2,5:11)],
+  RNA_RHCC44_24h[, 5:12]
 ) |>
   setNames(c(
     "Genename", "ID",   "
@@ -71,14 +71,12 @@ RNA_box_HCC44.H23_24h <- cbind(
     "HCC44_2Gy_3",
     "HCC44_2Gy_4"
   ))
-#--------------------------------------------
-# Violin plot of Intensities
-#--------------------------------------------
-RNA_violin_data <- as.data.frame(
-  log10((2^RNA_box_HCC44.H23_24h[, c(9:17, 3:8)]) + 1)
+
+RNA_intensity_data <- as.data.frame(
+  log10((RNA_intensity_HCC44_H23_24h[, c(9:17, 3:8)]) + 1)
 )
 
-colnames(RNA_violin_data) <- c(
+colnames(RNA_intensity_data) <- c(
   "HCC44_ctrl_1",
   "HCC44_ctrl_2",
   "HCC44_ctrl_3",
@@ -96,7 +94,7 @@ colnames(RNA_violin_data) <- c(
   "H23_2Gy_4"
 )
 
-RNA_violin_long <- RNA_violin_data %>%
+RNA_intensity_long <- RNA_intensity_data %>%
   pivot_longer(
     cols = everything(),
     names_to = "Sample",
@@ -105,27 +103,27 @@ RNA_violin_long <- RNA_violin_data %>%
   mutate(
     Sample = factor(
       Sample,
-      levels = colnames(RNA_violin_data)
+      levels = colnames(RNA_intensity_data)
     ),
     Group = case_when(
       grepl("^HCC44_ctrl", Sample) ~ "HCC44 ctrl",
-      grepl("^HCC44_2Gy", Sample)  ~ "HCC44 2Gy",
+      grepl("^HCC44_2Gy", Sample)  ~ "HCC44 2 Gy",
       grepl("^H23_ctrl", Sample)   ~ "NCI-H23 ctrl",
-      grepl("^H23_2Gy", Sample)    ~ "NCI-H23 2Gy"
+      grepl("^H23_2Gy", Sample)    ~ "NCI-H23 2 Gy"
     ),
     Group = factor(
       Group,
       levels = c(
         "HCC44 ctrl",
-        "HCC44 2Gy",
+        "HCC44 2 Gy",
         "NCI-H23 ctrl",
-        "NCI-H23 2Gy"
+        "NCI-H23 2 Gy"
       )
     )
   )
 
-p_transcriptome_violin <- ggplot(
-  RNA_violin_long,
+RNA_p_transcriptome_Intensity <- ggplot(
+  RNA_intensity_long,
   aes(
     x = Sample,
     y = Count,
@@ -143,7 +141,7 @@ p_transcriptome_violin <- ggplot(
     fun = median,
     geom = "point",
     shape = 21,
-    size = 2.5,
+    size = 2,
     stroke = 0.5,
     fill = "white",
     colour = "black",
@@ -153,9 +151,9 @@ p_transcriptome_violin <- ggplot(
     values = RNA_colours,
     breaks = c(
       "HCC44 ctrl",
-      "HCC44 2Gy",
+      "HCC44 2 Gy",
       "NCI-H23 ctrl",
-      "NCI-H23 2Gy"
+      "NCI-H23 2 Gy"
     )
   ) +
   scale_y_continuous(
@@ -170,7 +168,7 @@ p_transcriptome_violin <- ggplot(
   labs(
     title = "Transcriptome - HCC44 & NCI-H23",
     x = NULL,
-    y = expression(log[10] * "(Count) + 1")
+    y = expression(log[10] * "(Count + 1)")
   ) +
   theme_prism_xcell() +
   theme(
@@ -189,12 +187,15 @@ p_transcriptome_violin <- ggplot(
     legend.position = "bottom",
     legend.direction = "horizontal",
     legend.box.just = "left",
-    legend.text = element_text(size = 6.5),
+    legend.text = element_text(size = 9),
     legend.key.width = grid::unit(3, "mm"),
     legend.key.height = grid::unit(2.5, "mm"),
     legend.key.spacing.x = grid::unit(1, "mm"),
     legend.spacing.x = grid::unit(0, "mm"),
     legend.box.spacing = grid::unit(2, "mm"),
+    plot.title = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text = element_text(size = 12),
     plot.margin = margin(
       t = 10,
       r = 10,
@@ -215,7 +216,7 @@ p_transcriptome_violin <- ggplot(
     label = "HCC44 ctrl",
     angle = 30,
     hjust = 1,
-    size = 3
+    size = 3.5
   ) +
   annotate(
     "text",
@@ -224,7 +225,7 @@ p_transcriptome_violin <- ggplot(
     label = "HCC44 2Gy",
     angle = 30,
     hjust = 1,
-    size = 3
+    size = 3.5
   ) +
   annotate(
     "text",
@@ -233,29 +234,30 @@ p_transcriptome_violin <- ggplot(
     label = "NCI-H23 ctrl",
     angle = 30,
     hjust = 1,
-    size = 3
+    size = 3.5
   ) +
   annotate(
     "text",
     x = 12,
     y = -0.5,
-    label = "NCI-H23 2Gy",
+    label = "NCI-H23 2 Gy",
     angle = 30,
     hjust = 1,
-    size =3
+    size =3.5
   )
-  p_transcriptome_violin <- p_transcriptome_violin +
+
+RNA_p_transcriptome_Intensity <- RNA_p_transcriptome_Intensity +
   theme(
     legend.position = "none"
   )
 #--------------------------------------------
 # Principal Component Analysis
 #--------------------------------------------
-RNA_base_pca_filt <- data.frame(
-log2(RH23_24h[, c(12,14)]),
-log2(RHCC44_24h[, c(13,15)]))
+RNA_PCA_data <- data.frame(
+log2(RNA_RH23_24h[, c(5:11)]),
+log2(RNA_RHCC44_24h[, c(5:12)]))
 
-RNA_base_pca_filt <- RNA_base_pca_filt %>%
+RNA_PCA_data_filt <- RNA_PCA_data %>%
   mutate(
     across(
       everything(),
@@ -263,33 +265,32 @@ RNA_base_pca_filt <- RNA_base_pca_filt %>%
     )
   )
 
-RNA_base_pca_filt <- RNA_base_pca_filt[
-  complete.cases(RNA_base_pca_filt),
+RNA_PCA_data_filt <- RNA_PCA_data_filt[
+  complete.cases(RNA_PCA_data_filt),
 ]
 
-RNA_base_pca_filt <- t(RNA_base_pca_filt)
+RNA_PCA_data_filt <- t(RNA_PCA_data_filt)
 
-pc_RNA_base_pca_filt <- prcomp(
-  RNA_base_pca_filt,
+RNA_PCA_res <- prcomp(
+  RNA_PCA_data_filt,
   center = TRUE,
   scale. = TRUE
 )
 
-RNA_pca_variance <- pc_RNA_base_pca_filt$sdev^2 /
-  sum(pc_RNA_base_pca_filt$sdev^2) * 100
+RNA_PCA_variance <- RNA_PCA_res$sdev^2 /
+  sum(RNA_PCA_res$sdev^2) * 100
 
-RNA_PC1_var <- RNA_pca_variance[1]
-RNA_PC2_var <- RNA_pca_variance[2]
+RNA_PC1_var <- RNA_PCA_variance[1]
+RNA_PC2_var <- RNA_PCA_variance[2]
 
+RNA_PCA_plot_data <- as.data.frame(RNA_PCA_res$x[, 1:2])
 
-pca_RNA_data <- as.data.frame(pc_RNA_base_pca_filt$x[, 1:2])
-
-pca_RNA_data$Group <- factor(
+RNA_PCA_plot_data$Group <- factor(
   c(
-    rep("NCI-H23 ctrl", 1),
-    rep("NCI-H23 2 Gy", 1),
-    rep("HCC44 ctrl", 1),
-    rep("HCC44 2 Gy", 1)
+    rep("NCI-H23 ctrl", 3),
+    rep("NCI-H23 2 Gy", 4),
+    rep("HCC44 ctrl", 4),
+    rep("HCC44 2 Gy", 4)
   ),
   levels = c(
     "HCC44 ctrl",
@@ -299,8 +300,8 @@ pca_RNA_data$Group <- factor(
   )
 )
 
-p_transcriptome_PCA <- ggplot(
-  pca_RNA_data,
+RNA_p_transcriptome_PCA <- ggplot(
+  RNA_PCA_plot_data,
   aes(
     x = PC1,
     y = PC2,
@@ -343,7 +344,7 @@ p_transcriptome_PCA <- ggplot(
   scale_y_continuous(
     breaks = c(-100,-50, 0, 50, 100),
     minor_breaks = c(-75,-25, 25,75),
-    expand = expansion(mult = c(0, 0))
+    expand = expansion(mult = c(0.05, 0.05))
   ) +
   coord_cartesian(
     xlim = c(-100, 100),
@@ -368,29 +369,29 @@ p_transcriptome_PCA <- ggplot(
     legend.position = "bottom",
     legend.direction = "horizontal",
     legend.box.just = "left",
-    legend.text = element_text(size = 6.5),
+    legend.text = element_text(size = 8.5),
     legend.key.width = grid::unit(3, "mm"),
     legend.key.height = grid::unit(2.5, "mm"),
     legend.key.spacing.x = grid::unit(1, "mm"),
     legend.spacing.x = grid::unit(0, "mm"),
     legend.box.spacing = grid::unit(2, "mm"),
     plot.title = element_text(
-      size = 11,
+      size = 12,
       face = "bold",
       hjust = 0.5
     ),
     axis.title = element_text(
-      size = 10,
+      size = 12,
       face = "bold"
     ),
     axis.text = element_text(
-      size = 9,
+      size = 10,
       colour = "black"
     ),
     plot.margin = margin(
       t = 10,
       r = 10,
-      b = 25,
+      b = 5,
       l = 10
     )
   ) +
@@ -405,15 +406,16 @@ p_transcriptome_PCA <- ggplot(
       )
     )
   )
+
 #--------------------------------------------
-# Venn Diagram Transcriptome + Proteome
+# Venn Diagram Transcriptome
 #--------------------------------------------
-venn_transcriptome <- venn.diagram(
+RNA_venn_transcriptome <- venn.diagram(
     x = list(
-      "NCI-H23 ctrl" = RH23_24h[complete.cases(RH23_24h[,12]),2],
-      "NCI-H23 2 Gy" = RH23_24h[complete.cases(RH23_24h[,14]),2],
-      "HCC44 ctrl"   = RHCC44_24h[complete.cases(RHCC44_24h[,13]),2],
-      "HCC44 2 Gy"   = RHCC44_24h[complete.cases(RHCC44_24h[,15]),2]
+      "HCC44 ctrl"   = RNA_RHCC44_24h[complete.cases(RNA_RHCC44_24h[,13]),2],
+      "HCC44 2 Gy"   = RNA_RHCC44_24h[complete.cases(RNA_RHCC44_24h[,15]),2],
+      "NCI-H23 ctrl" = RNA_RH23_24h[complete.cases(RNA_RH23_24h[,12]),2],
+      "NCI-H23 2 Gy" = RNA_RH23_24h[complete.cases(RNA_RH23_24h[,14]),2]
     ),
     filename = NULL,
     fill = venn_colours,
@@ -425,60 +427,30 @@ venn_transcriptome <- venn.diagram(
     cex = 0.8,
     fontfamily = "sans",
     fontface = "plain",
-    cat.cex = 0.8,
+    cat.cex = 0.9,
     cat.fontfamily = "sans",
     cat.fontface = "plain",
     cat.col = "black",
-    cat.pos = c(347.5, 10, 340, 20),
+    cat.pos = c(335, 25, 340, 20),
     cat.dist = c(0.25, 0.25, 0.15, 0.15),
     scaled = FALSE,
-    main = "Transcriptome",
+    main = "",
     main.cex = 1,
     main.fontfamily = "sans",
     main.fontface = "bold",
-    margin = 0.1
-  )
-  
-venn_proteome <- venn.diagram(
-    x = list(
-      "NCI-H23 ctrl" = mean_pH23_24h[complete.cases(mean_pH23_24h[,5]),1],
-      "NCI-H23 2 Gy" = mean_pH23_24h[complete.cases(mean_pH23_24h[,7]),1],
-      "HCC44 ctrl"   = mean_pHCC44_24h[complete.cases(mean_pHCC44_24h[,5]),1],
-      "HCC44 2 Gy"   = mean_pHCC44_24h[complete.cases(mean_pHCC44_24h[,7]),1]
-    ),
-    filename = NULL,
-    fill = venn_colours,
-    alpha = rep(0.65, 4),
-    col = rep("black", 4),
-    lwd = 1.2,
-    lty = "solid",
-    print.mode = "raw",
-    cex = 0.8,
-    fontfamily = "sans",
-    fontface = "plain",
-    cat.cex = 0.8,
-    cat.fontfamily = "sans",
-    cat.fontface = "plain",
-    cat.col = "black",
-    cat.pos = c(347.5, 10, 340, 20),
-    cat.dist = c(0.25, 0.25, 0.15, 0.15),
-    scaled = FALSE,
-    main = "Proteome",
-    main.cex = 1,
-    main.fontfamily = "sans",
-    main.fontface = "bold",
-    margin = 0.1,
-  )
+    main.just = c(0,0.2),
+    margin = 0.25
+)
 #--------------------------------------------
 # Heatmap Transcriptome
 #--------------------------------------------
-intens_RNA_all_24h <- data.frame(
-  RH23_24h[, c(1:2,5:11)],
-  RHCC44_24h[, 5:12]
+RNA_hm_intensity_all <- data.frame(
+  RNA_RH23_24h[, c(1:2,5:11)],
+  RNA_RHCC44_24h[, 5:12]
 )
 
-colnames(intens_RNA_all_24h) <- c(
-  "Genes",
+colnames(RNA_hm_intensity_all) <- c(
+  "Symbol",
   "ID",
   "H23 c1",
   "H23 c2",
@@ -498,12 +470,12 @@ colnames(intens_RNA_all_24h) <- c(
   "HCC44 2Gy4"
 )
 
-intens_RNA_all_24h[, 3:17] <- intens_RNA_all_24h[, 3:17] %>%
+RNA_hm_intensity_all[, 3:17] <- RNA_hm_intensity_all[, 3:17] %>%
   mutate(
     across(everything(), as.numeric)
   )
 
-intens_RNA_all_24h[, 3:17] <- intens_RNA_all_24h[, 3:17] %>%
+RNA_hm_intensity_all[, 3:17] <- RNA_hm_intensity_all[, 3:17] %>%
   mutate(
     across(
       everything(),
@@ -511,19 +483,19 @@ intens_RNA_all_24h[, 3:17] <- intens_RNA_all_24h[, 3:17] %>%
     )
   )
 
-intens_RNA_all_24h <- intens_RNA_all_24h[
-  complete.cases(intens_RNA_all_24h[, 3:17]),
+RNA_hm_intensity_all <- RNA_hm_intensity_all[
+  complete.cases(RNA_hm_intensity_all[, 3:17]),
 ]
 
-transcriptome_matrix <- as.matrix(
-  intens_RNA_all_24h[, 3:17]
+RNA_hm_intensity_matrix <- as.matrix(
+  RNA_hm_intensity_all[, 3:17]
 )
 
-rownames(transcriptome_matrix) <- intens_RNA_all_24h$Genes
+rownames(RNA_hm_intensity_matrix) <- RNA_hm_intensity_all$Symbol
 
-transcriptome_z <- t(
+RNA_hm_intensity_z <- t(
   scale(
-    t(transcriptome_matrix)
+    t(RNA_hm_intensity_matrix)
   )
 )
 
@@ -547,15 +519,15 @@ annotation_col <- data.frame(
   check.names = FALSE
 )
 
-rownames(annotation_col) <- colnames(transcriptome_matrix)
+rownames(annotation_col) <- colnames(RNA_hm_intensity_z)
 
 identical(
-  colnames(transcriptome_z),
+  colnames(RNA_hm_intensity_z),
   rownames(annotation_col)
 )
 
-Graph_QC_RNA_2 <- pheatmap(
-  transcriptome_z,
+RNA_p_hm_intensity_all <- pheatmap(
+  RNA_hm_intensity_z,
   cluster_rows = TRUE,
   cluster_cols = TRUE,
   annotation_col = annotation_col,
@@ -564,23 +536,23 @@ Graph_QC_RNA_2 <- pheatmap(
   show_rownames = FALSE,
   show_colnames = FALSE,
   border_color = NA,
-  fontsize = 9
+  fontsize = 12
 )
 #--------------------------------------------
 # Barplots of counts
 #--------------------------------------------
-n_Rcount <- data.frame(
+RNA_n_Rcount <- data.frame(
   H23_24h_c = count(
-    RH23_24h[complete.cases(RH23_24h$mean_C), ]
+    RNA_RH23_24h[complete.cases(RNA_RH23_24h$mean_C), ]
   ),
   H23_24h_2Gy = count(
-    RH23_24h[complete.cases(RH23_24h$mean_2Gy), ]
+    RNA_RH23_24h[complete.cases(RNA_RH23_24h$mean_2Gy), ]
   ),
   HCC44_24h_c = count(
-    RHCC44_24h[complete.cases(RHCC44_24h$mean_C), ]
+    RNA_RHCC44_24h[complete.cases(RNA_RHCC44_24h$mean_C), ]
   ),
   HCC44_24h_2Gy = count(
-    RHCC44_24h[complete.cases(RHCC44_24h$mean_2Gy), ]
+    RNA_RHCC44_24h[complete.cases(RNA_RHCC44_24h$mean_2Gy), ]
   )
 )
 
@@ -600,11 +572,11 @@ RNA_count_data <- data.frame(
     )
   ),
   Count = as.numeric(
-    n_Rcount[, c(3, 4, 1, 2)]
+    RNA_n_Rcount[, c(3, 4, 1, 2)]
   )
 )
 
-Transcriptome_identifiedRNAs <- ggplot(
+RNA_p_identifiedRNAs <- ggplot(
   RNA_count_data,
   aes(
     x = Group,
@@ -615,13 +587,13 @@ Transcriptome_identifiedRNAs <- ggplot(
   geom_hline(
     yintercept = 13751,
     linetype = "dotted",
-    linewidth = 0.75,
+    linewidth = 0.65,
     colour = "black"
   ) +
   geom_col(
     width = 0.4,
     colour = "black",
-    linewidth = 0.5
+    linewidth = 0.75
   ) +
   geom_text(
     aes(
@@ -632,17 +604,19 @@ Transcriptome_identifiedRNAs <- ggplot(
         scientific = FALSE
       )
     ),
-    vjust = -0.5,
-    size = 2.5
+    vjust = -0.6,
+    hjust = -0.05,
+    angle = 35,
+    size = 3.5
   ) +
   annotate(
     "text",
     x = 4.3,
-    y = 12251,
-    label = "Shared RNAs: 13,751",
+    y = 10251,
+    label = "Shared RNAs:\n 13,751",
     hjust = 0,
-    vjust = -0.5,
-    size = 2.5
+    vjust = 0.1,
+    size = 3.5
   ) +
   scale_fill_manual(
     values = RNA_colours
@@ -672,18 +646,18 @@ Transcriptome_identifiedRNAs <- ggplot(
   theme_prism_xcell() +
   theme(
     axis.title.y = element_text(
-      size = 7,
+      size = 12,
       face = "bold"
     ),
     axis.text.y = element_text(
-      size =6,
+      size =10,
       colour = "black"
     ),
     axis.text.x = element_text(
-      size = 6,
+      size = 10,
       colour = "black",
       angle = 35,
-      hjust = 1,
+      hjust = 1.1,
       vjust = 1
     ),
     axis.ticks.x = element_blank(),
@@ -701,34 +675,34 @@ Transcriptome_identifiedRNAs <- ggplot(
 #--------------------------------------------
 # RPKM
 #--------------------------------------------
-RPKM_plot_data <- bind_rows(
+RNA_RPKM_plot_data <- bind_rows(
   prepare_RPKM(
-    RPKM,
+    RNA_RPKM,
     sample_cols = c(13, 21, 22),
     cellline = "NCI-H23",
     treatment = "ctrl"
   ),
   prepare_RPKM(
-    RPKM,
+    RNA_RPKM,
     sample_cols = c(23, 14:16),
     cellline = "NCI-H23",
     treatment = "2 Gy"
   ),
   prepare_RPKM(
-    RPKM,
+    RNA_RPKM,
     sample_cols = c(9, 17:19),
     cellline = "HCC44",
     treatment = "ctrl"
   ),
   prepare_RPKM(
-    RPKM,
+    RNA_RPKM,
     sample_cols = c(10:12, 20),
     cellline = "HCC44",
     treatment = "2 Gy"
   )
 )
 
-RPKM_plot_data <- RPKM_plot_data %>%
+RNA_RPKM_plot_data <- RNA_RPKM_plot_data %>%
   mutate(
     Condition = paste(Cellline, Treatment),
     Condition = factor(
@@ -742,23 +716,23 @@ RPKM_plot_data <- RPKM_plot_data %>%
     )
   )
 
-RNA_type_counts <- RPKM %>%
+RNA_type_counts <- RNA_RPKM %>%
   count(gene_biotype, sort = TRUE)
 
-top5_RNA_types <- RNA_type_counts %>%
+RNA_top5_RNA_types <- RNA_type_counts %>%
   slice_head(n = 5) %>%
   pull(gene_biotype)
 
-RPKM_plot_data <- RPKM_plot_data %>%
+RNA_RPKM_plot_data <- RNA_RPKM_plot_data %>%
   mutate(
     Biotype = ifelse(
-      gene_biotype %in% top5_RNA_types,
+      gene_biotype %in% RNA_top5_RNA_types,
       gene_biotype,
       "rest"
     ),
     Biotype = factor(
       Biotype,
-      levels = c(top5_RNA_types, "rest")
+      levels = c(RNA_top5_RNA_types, "rest")
     ),
     Condition = factor(
       paste(Cellline, Treatment),
@@ -772,13 +746,13 @@ RPKM_plot_data <- RPKM_plot_data %>%
   )
 
 names(RPKM_colours) <- c(
-  top5_RNA_types,
+  RNA_top5_RNA_types,
   "rest"
 )
-names(RPKM_colours) <- levels(RPKM_plot_data$Biotype)
+names(RPKM_colours) <- levels(RNA_RPKM_plot_data$Biotype)
 
-Transcriptome_RPKM <- ggplot(
-  RPKM_plot_data,
+RNA_p_RPKM <- ggplot(
+  RNA_RPKM_plot_data,
   aes(
     x = Biotype,
     y = Expression,
@@ -821,27 +795,28 @@ Transcriptome_RPKM <- ggplot(
   theme(
     strip.background = element_blank(),
     strip.text = element_text(
-      size = 10,
+      size = 12,
       face = "bold",
       colour = "black"
     ),
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank(),
     axis.text.y = element_text(
-      size = 9,
+      size = 10,
       colour = "black"
     ),
     axis.title.y = element_text(
-      size = 10,
+      size = 12,
       face = "bold"
     ),
     legend.position = "bottom",
     legend.direction = "horizontal",
-    legend.text = element_text(size = 7),
+    legend.justification = c(0.2,0),
+    legend.location = "plot",
+    legend.text = element_text(size = 8),
     legend.key.width  = grid::unit(3, "mm"),
     legend.key.height = grid::unit(3, "mm"),
     panel.spacing = grid::unit(5, "mm"),
-    
     plot.margin = margin(
       5, 5, 5, 5
     )
@@ -855,51 +830,51 @@ Transcriptome_RPKM <- ggplot(
 #--------------------------------------------
 # TPM
 #--------------------------------------------
-TPM_plot_data <- bind_rows(
+RNA_TPM_plot_data <- bind_rows(
   prepare_TPM(
-    TPM,
+    RNA_TPM,
     sample_cols = c(13, 21, 22),
     cellline = "NCI-H23",
     treatment = "ctrl"
   ),
   prepare_TPM(
-    TPM,
+    RNA_TPM,
     sample_cols = c(23, 14:16),
     cellline = "NCI-H23",
     treatment = "2 Gy"
   ),
   prepare_TPM(
-    TPM,
+    RNA_TPM,
     sample_cols = c(9, 17:19),
     cellline = "HCC44",
     treatment = "ctrl"
   ),
   prepare_TPM(
-    TPM,
+    RNA_TPM,
     sample_cols = c(10:12, 20),
     cellline = "HCC44",
     treatment = "2 Gy"
   )
 )
 
-RNA_type_counts_TPM <- TPM %>%
+RNA_type_counts_TPM <- RNA_TPM %>%
   count(gene_biotype, sort = TRUE)
 
-top5_RNA_types_TPM <- RNA_type_counts_TPM %>%
+RNA_top5_RNA_types_TPM <- RNA_type_counts_TPM %>%
   slice_head(n = 5) %>%
   pull(gene_biotype)
 
-TPM_plot_data <- TPM_plot_data %>%
+RNA_TPM_plot_data <- RNA_TPM_plot_data %>%
   mutate(
     Biotype = ifelse(
-      gene_biotype %in% top5_RNA_types_TPM,
+      gene_biotype %in% RNA_top5_RNA_types_TPM,
       gene_biotype,
       "rest"
     ),
     Biotype = factor(
       Biotype,
       levels = c(
-        top5_RNA_types_TPM,
+        RNA_top5_RNA_types_TPM,
         "rest"
       )
     ),
@@ -915,12 +890,12 @@ TPM_plot_data <- TPM_plot_data %>%
   )
 
 names(RPKM_colours) <- c(
-  top5_RNA_types_TPM,
+  RNA_top5_RNA_types_TPM,
   "rest"
 )
 
-Transcriptome_TPM <- ggplot(
-  TPM_plot_data,
+RNA_p_TPM <- ggplot(
+  RNA_TPM_plot_data,
   aes(
     x = Biotype,
     y = Expression,
@@ -963,68 +938,69 @@ Transcriptome_TPM <- ggplot(
   theme(
     strip.background = element_blank(),
     strip.text = element_text(
-      size = 10,
+      size = 12,
       face = "bold",
       colour = "black"
     ),
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank(),
     axis.text.y = element_text(
-      size = 9,
+      size = 10,
       colour = "black"
     ),
     axis.title.y = element_text(
-      size = 10,
+      size = 12,
       face = "bold"
     ),
     legend.position = "bottom",
     legend.direction = "horizontal",
-    legend.text = element_text(size = 7),
+    legend.justification = c(0.2,0),
+    legend.location = "plot",
+    legend.text = element_text(size = 8),
     legend.key.width  = grid::unit(3, "mm"),
     legend.key.height = grid::unit(3, "mm"),
     panel.spacing = grid::unit(5, "mm"),
-    
     plot.margin = margin(
       5, 5, 5, 5
     )
   ) +
   guides(
     fill = guide_legend(
-      nrow = 1,
+      nrow = 2,
       byrow = TRUE
     )
   )
 #--------------------------------------------
 # Coefficient of Variance
 #--------------------------------------------
-cov_RNA <- bind_rows(
+RNA_cov_RNA <- bind_rows(
   calculate_cov_RNA(
-    RHCC44_24h[, 3:6],
+    RNA_RHCC44_24h[, 5:8],
     "HCC44",
     "ctrl",
     "24 h"
   ),
   calculate_cov_RNA(
-    RHCC44_24h[, 7:10],
+    RNA_RHCC44_24h[, 9:12],
     "HCC44",
     "2 Gy",
     "24 h"
   ),
   calculate_cov_RNA(
-    RH23_24h[, 3:5],
+    RNA_RH23_24h[, 5:7],
     "NCI-H23",
     "ctrl",
     "24 h"
   ),
   calculate_cov_RNA(
-    RH23_24h[, 6:9],
+    RNA_RH23_24h[, 8:11],
     "NCI-H23",
     "2 Gy",
     "24 h"
   )
 )
 
-cov_RNA <- cov_RNA %>%
+RNA_cov_RNA <- RNA_cov_RNA %>%
   mutate(
     Cellline = factor(
       Cellline,
@@ -1042,7 +1018,7 @@ cov_RNA <- cov_RNA %>%
     )
   )
 
-cov_density_RNA <- cov_RNA %>%
+RNA_cov_density_RNA <- RNA_cov_RNA %>%
   group_by(
     Cellline,
     Treatment,
@@ -1051,12 +1027,11 @@ cov_density_RNA <- cov_RNA %>%
   group_modify(
     ~ make_density(.x)
   ) %>%
-  ungroup() %>%
-  mutate(
-    log_CV = log10(CV + 1)
-  )
-p_cov_RNA <- plot_cov_RNA(
-  cov_density_RNA)
+  ungroup() 
+
+
+RNA_p_cov_RNA <- plot_cov_RNA(
+  RNA_cov_density_RNA)
 #--------------------------------------------
 # saving results
 #--------------------------------------------
@@ -1069,15 +1044,16 @@ setwd(file.path(dirs$results, "17_Transcriptome_QualityControl"))
 
 #1. saving intensity violine plot
 ggsave(
-  "Transcriptome_violineplot.pdf",
-  p_transcriptome_violin,
+  "17_Transcriptome_measured_intensities.pdf",
+  RNA_p_transcriptome_Intensity,
   width = 21*2/3,
   height = 7,
   units = "cm"
 )
+
 ggsave(
-  "Transcriptome_violineplot.jpg",
-  p_transcriptome_violin,
+  "17_Transcriptome_measured_intensities.jpg",
+  RNA_p_transcriptome_Intensity,
   width = 21*2/3,
   height = 7,
   units = "cm"
@@ -1085,86 +1061,80 @@ ggsave(
 
 #2. Principal component analysis plot
 ggsave(
-  filename = "Transcriptome_qc_PCA.pdf",
-  plot = p_transcriptome_PCA,
+  filename = "17_Transcriptome_PCA_24h.pdf",
+  plot = RNA_p_transcriptome_PCA,
   width =21*1/3,
   height = 7,
   units = "cm"
 )
 
 ggsave(
-  filename = "Transcriptome_qc_PCA.jpg",
-  plot = p_transcriptome_PCA,
+  filename = "17_Transcriptome_PCA_24h.jpg",
+  plot = RNA_p_transcriptome_PCA,
   width = 21*1/3,
   height = 7,
   units = "cm"
 )
 
 #3. Plotting Venn diagramm of proteome and transcriptome
-grid.newpage()
-grid.draw(venn_transcriptome)
-
-grid.newpage()
-grid.draw(venn_proteome)
-
-pushViewport(
-  viewport(
-    layout.pos.row = 2,
-    layout.pos.col = 1
-  )
-)
-
-grid.draw(venn_transcriptome)
-upViewport()
-pushViewport(
-  viewport(
-    layout.pos.row = 2,
-    layout.pos.col = 2
-  )
-)
-grid.draw(venn_proteome)
-upViewport()
-
 pdf(
-  "Venn_Transcriptome.pdf",
+  "17_Transcriptome_VennDiagram.pdf",
   width = 9 / 2.54,
   height = 7 / 2.54,
   useDingbats = FALSE
 )
 
 grid.newpage()
-grid.draw(venn_transcriptome)
-
+grid.draw(RNA_venn_transcriptome)
+grid.text(
+  "Transcriptome",
+  x = 0.5,
+  y = 0.75,
+  gp = gpar(
+    fontsize = 14,
+    fontface = "bold",
+    fontfamily = "sans"
+  )
+)
 dev.off()
 
 pdf(
-  "Venn_Proteome.pdf",
+  "17_Transcriptome_VennDiagram",
   width = 9 / 2.54,
   height = 7 / 2.54,
   useDingbats = FALSE
 )
-
 grid.newpage()
-grid.draw(venn_proteome)
+grid.draw(RNA_venn_transcriptome)
+grid.text(
+  "Proteome",
+  x = 0.5,
+  y = 0.75,
+  gp = gpar(
+    fontsize = 14,
+    fontface = "bold",
+    fontfamily = "sans"
+  )
+)
 
 dev.off()
 
 #4. saving Heatmap
 pdf(
-  "Transcriptome_Heatmap.pdf",
+  "17_Transcriptome_Heatmap_all_unfiltered.pdf",
   width = 21*1/3,
   height = 3.5
 )
 
 grid::grid.newpage()
-grid::grid.draw(Graph_QC_RNA_2$gtable)
+grid::grid.draw(RNA_p_hm_intensity_all$gtable)
 
 dev.off()
 
 #5. Barplot of identified Transcripts
 ggsave(
-  "Transcriptome_identifiedRNAs.jpeg",
-  plot = Transcriptome_identifiedRNAs,
+  "17_Transcriptome_Nr_identified_RNAs.jpeg",
+  plot = RNA_p_identifiedRNAs,
   width = 21*2/3,
   height = 7,
   units = "cm",
@@ -1172,8 +1142,8 @@ ggsave(
 )
 
 ggsave(
-  "Transcriptome_identifiedRNAs.pdf",
-  plot = Transcriptome_identifiedRNAs,
+  "17_Transcriptome_Nr_identified_RNAs.pdf",
+  plot = RNA_p_identifiedRNAs,
   width = 21*2/3,
   height = 7,
   units = "cm",
@@ -1182,16 +1152,16 @@ ggsave(
 
 #6. RPKM violine plot
 ggsave(
-  filename = "Transcriptome_RPKM.pdf",
-  plot = Transcriptome_RPKM,
+  filename = "17_Transcriptome_RPKM.pdf",
+  plot = RNA_p_RPKM,
   width = 21*1/2,
   height = 7,
   units = "cm"
 )
 
 ggsave(
-  filename = "Transcriptome_RPKM.jpg",
-  plot = Transcriptome_RPKM,
+  filename = "17_Transcriptome_RPKM.jpg",
+  plot = RNA_p_RPKM,
   width = 21*1/2,
   height = 7,
   units = "cm"
@@ -1199,16 +1169,16 @@ ggsave(
 
 #7. TPM violine plot
 ggsave(
-  filename = "Transcriptome_TPM.pdf",
-  plot = Transcriptome_RPKM,
+  filename = "17_Transcriptome_TPM.pdf",
+  plot = RNA_p_identifiedRNAs,
   width = 21*1/2,
   height = 7,
   units = "cm"
 )
 
 ggsave(
-  filename = "Transcriptome_TPM.jpg",
-  plot = Transcriptome_RPKM,
+  filename = "17_Transcriptome_PM.jpg",
+  plot = RNA_p_identifiedRNAs,
   width = 21*1/2,
   height = 7,
   units = "cm"
@@ -1216,16 +1186,16 @@ ggsave(
 
 #8. Coefficient of Variation plot
 ggsave(
-  filename = "Transcriptome_qc_COV.pdf",
-  plot = p_cov_RNA,
+  filename = "17_Transcriptome_COV_all.pdf",
+  plot = RNA_p_cov_RNA,
   width = 21*1/3,
   height = 7,
   units = "cm"
 )
 
 ggsave(
-  filename = "Transcriptome_qc_COV.jpg",
-  plot = p_cov_RNA,
+  filename = "17_Transcriptome_COV_all.jpg",
+  plot = RNA_p_cov_RNA,
   width = 21*1/3,
   height = 7,
   units = "cm"
