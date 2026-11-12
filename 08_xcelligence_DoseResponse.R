@@ -1,23 +1,23 @@
 #------------------------------------------
 # Setting path
 #------------------------------------------
-setwd(file.path(base_dir,"functional_assays","xCelligence","Exp1_Dose response","processed")) #replace with path on your own PC
+setwd(file.path(dirs$xCelligence,"Exp1_Dose response","processed")) #replace with path on your own PC
 #original xlxs format was transformed to .csv for easier importing, original is available at /raw
-Doses <- c("2 Gy", "1.5 Gy", "1 Gy", "0.5 Gy", "0 Gy")
+Doses <- c("2 Gy", "1.5 Gy", "1 Gy", "0.5 Gy", "0 Gy","Medium")
 #------------------------------------------
 # Binding and preparing data
 #------------------------------------------
-xCell_growth_Data_H23 <- prepare_xCell(
+xCell_DoseResponse_Data_H23 <- prepare_xCell(
   "extracted_H23_rep1.csv"
 )
 
-xCell_growth_Data_HCC44 <- prepare_xCell(
+xCell_DoseResponse_Data_HCC44 <- prepare_xCell(
   "extracted_HCC44_rep1.csv"
 )
 
-stat_growth_data_all <- bind_rows(
-  xCell_growth_Data_H23   %>% mutate(Cellline = "NCI-H23"),
-  xCell_growth_Data_HCC44 %>% mutate(Cellline = "HCC44")
+xCell_DoseResponse_stat_data_all <- bind_rows(
+  xCell_DoseResponse_Data_H23   %>% mutate(Cellline = "NCI-H23"),
+  xCell_DoseResponse_Data_HCC44 %>% mutate(Cellline = "HCC44")
 ) %>%
   pivot_longer(
     cols = all_of(Doses),
@@ -35,16 +35,15 @@ stat_growth_data_all <- bind_rows(
 # Benchmark
 #------------------------------------------
 # Maximal Cell Index
-max_ci_growth <- stat_growth_data_all %>%
+xCell_DoseResponse_max_ci <- xCell_DoseResponse_stat_data_all %>%
   group_by(Cellline, Dose) %>%
   summarise(
     maxCI = max(CellIndex, na.rm = TRUE),
     .groups = "drop"
   )
 
-
 # time point od maximal Cell Index
-tmax_growth <- stat_growth_data_all %>%
+xCell_DoseResponse_tmax <- xCell_DoseResponse_stat_data_all %>%
   group_by(Cellline, Dose) %>%
   slice_max(
     CellIndex,
@@ -53,9 +52,9 @@ tmax_growth <- stat_growth_data_all %>%
   ) %>%
   ungroup()
 #------------------------------------------
-# growth rate
+# Growth rate
 #------------------------------------------
-xCell_growth_data <-stat_growth_data_all %>%
+xCell_DoseResponse_growth_rate_data <-xCell_DoseResponse_stat_data_all %>%
   mutate(
     Dose_num = as.numeric(gsub(" Gy", "", as.character(Dose)))
   ) %>%
@@ -66,9 +65,7 @@ xCell_growth_data <-stat_growth_data_all %>%
   ) %>%
   group_by(Cellline, Dose, Dose_num) %>%
   group_modify(~ {
-    
     fit <- lm(log(CellIndex) ~ Time, data = .x)
-    
     tibble(
       k = coef(fit)[["Time"]],
       R2 = summary(fit)$r.squared
@@ -76,15 +73,17 @@ xCell_growth_data <-stat_growth_data_all %>%
   }) %>%
   ungroup()
 
-xCell_growth_rate_lm <- lm(
-  k ~ Dose * Cellline,
-  data = xCell_growth_data
+xCell_DoseResponse_Grwothrate_rate_lm <- lm(
+  k ~ Dose_num * Cellline,
+  data = xCell_DoseResponse_growth_rate_data
 )
+
+xCell_DoseResponse_significance_Growth_rate_lm<-emmeans(xCell_DoseResponse_Grwothrate_rate_lm, pairwise ~ Cellline | Dose_num, adjust = "tukey")
 #------------------------------------------
 # normalization
 #------------------------------------------
 # Normalisation to 0 Gy
-norm_xCell_growth_data <- stat_growth_data_all %>%
+xCell_DoseResponse_norm_data <- xCell_DoseResponse_stat_data_all %>%
   group_by(Cellline, Time) %>%
   mutate(
     CI_norm = CellIndex / CellIndex[Dose == "0 Gy"][1]
@@ -92,11 +91,11 @@ norm_xCell_growth_data <- stat_growth_data_all %>%
   ungroup()
 
 # split cell line and dose
-split_xCell_growth_data <- norm_xCell_growth_data %>%
+xCell_DoseResponse_split_data <- xCell_DoseResponse_norm_data %>%
   group_by(Cellline, Dose) %>%
   group_split() %>%
   setNames(
-    norm_xCell_growth_data %>%
+    xCell_DoseResponse_norm_data %>%
       distinct(Cellline, Dose) %>%
       transmute(
         name = paste(Cellline, Dose, sep = "_")
@@ -104,42 +103,42 @@ split_xCell_growth_data <- norm_xCell_growth_data %>%
       pull(name)
   )
 
-stat_xCell_growth_lin_model <- lm(
+xCell_DoseResponse_norm_stat_lm <- lm(
   CellIndex ~ Time * Dose * Cellline,
-  data = stat_growth_data_all
+  data = xCell_DoseResponse_stat_data_all
 )
 
-xCell_growth_aov_lin_model<-anova(stat_xCell_growth_lin_model)
-summary(stat_xCell_growth_lin_model)
+xCell_DoseResponse_significance_norm_lm<-emmeans(xCell_DoseResponse_norm_stat_lm, pairwise ~ Cellline | Dose, adjust = "tukey")
 #------------------------------------------
 # Area under the curve (AUC)
-#-----------------------------------------
-auc_xCell_growth_data_all <- norm_xCell_growth_data %>%
+#------------------------------------------
+xCell_DoseResponse_auc_data_all <- xCell_DoseResponse_norm_data %>%
   group_by(Cellline, Dose) %>%
   summarise(
     AUC = pracma::trapz(Time, CI_norm),
     .groups = "drop"
+  )%>%
+  filter(
+    Dose!="Medium"
   )
 
-
 # Model for AUC
-mod_auc_xCell_growth_all <- lm(
+xCell_DoseResponse_mod_auc_all <- lm(
   AUC ~ Dose * Cellline,
-  data = auc_xCell_growth_data_all
+  data = xCell_DoseResponse_auc_data_all
 )
 
-xCell_growth_auc_lin_model<-anova(mod_auc_xCell_growth_all)
-summary(mod_auc_xCell_growth_all)
+xCell_DoseResponse_significance_auc_all<-emmeans(xCell_DoseResponse_mod_auc_all, pairwise ~ Cellline | Dose, adjust = "tukey")
 
 # AUC relative to 0 Gy control
-auc_xCell_growth_data_all <- auc_xCell_growth_data_all %>%
+xCell_DoseResponse_auc_data_all <- xCell_DoseResponse_auc_data_all %>%
   group_by(Cellline) %>%
   mutate(
     AUC_rel = AUC / AUC[Dose == "0 Gy"][1]
   ) %>%
   ungroup()
 
-auc_xCell_growth_data_all <- auc_xCell_growth_data_all%>%
+xCell_DoseResponse_auc_data_all <- xCell_DoseResponse_auc_data_all%>%
   mutate(
     Dose_num = as.numeric(gsub(" Gy", "", as.character(Dose)))
   )
@@ -155,21 +154,22 @@ xcell_colours <- c(
   "Medium"  = "grey70"
 )
 
-growth_colours <- c(
-  "HCC44" = "#3288BD",
-  "NCI-H23"   = "#ABDDA4"
+DoseResponse_colours <- c(
+  "HCC44" = "#4294F7",
+  "NCI-H23"   = "#5F8F29"
 )
 #-----------------------------------------  
 # plotting raw data
 #-----------------------------------------
-plot_xcell_growth_data_H23 <- stat_growth_data_all %>%
+xcell_DoseResponse_plot_data_H23 <- xCell_DoseResponse_stat_data_all %>%
   filter(Cellline == "NCI-H23") %>%
   mutate(
-    Group = Dose
+    Group = Dose,
+    Timepoint=Time
   )
 
-p_xcell_growth_raw_H23 <- plot_xcell(
-  data = plot_xcell_growth_data_H23,
+xcell_DoseResponse_p_raw_H23 <- plot_xcell(
+  data = xcell_DoseResponse_plot_data_H23,
   title = "NCI-H23",
   colours = xcell_colours,
   breaks = c(
@@ -188,14 +188,15 @@ p_xcell_growth_raw_H23 <- plot_xcell(
   y_minor = c(1, 3)
 )
 
-plot_xcell_growth_data_HCC44 <- stat_growth_data_all %>%
+xcell_DoseResponse_plot_data_HCC44 <- xCell_DoseResponse_stat_data_all %>%
   filter(Cellline == "HCC44") %>%
   mutate(
-    Group = Dose
-  )
+    Group = Dose,
+    Timepoint=Time
+    )
 
-p_xcell_growth_raw_HCC44 <- plot_xcell(
-  data = plot_xcell_growth_data_HCC44,
+xcell_DoseResponse_p_raw_HCC44 <- plot_xcell(
+  data = xcell_DoseResponse_plot_data_HCC44,
   title = "HCC44",
   colours = xcell_colours,
   breaks = c(
@@ -214,15 +215,15 @@ p_xcell_growth_raw_HCC44 <- plot_xcell(
   y_minor = c(1, 3)
 )
 
-p_xcell_growth_raw_H23 <- p_xcell_growth_raw_H23 +
+xcell_DoseResponse_p_raw_H23 <- xcell_DoseResponse_p_raw_H23 +
   theme(legend.position = "right")
 
-p_xcell_growth_raw_HCC44 <- p_xcell_growth_raw_HCC44 +
+xcell_DoseResponse_p_raw_HCC44 <- xcell_DoseResponse_p_raw_HCC44 +
   theme(legend.position = "right")
 
-xCell_growth_raw_final <- (
-  p_xcell_growth_raw_H23 +
-    p_xcell_growth_raw_HCC44 +
+xCell_DoseResponse_p_raw_final <- (
+  xcell_DoseResponse_p_raw_H23 +
+    xcell_DoseResponse_p_raw_HCC44 +
     patchwork::plot_layout(
       ncol = 2,
       guides = "collect"
@@ -232,18 +233,19 @@ xCell_growth_raw_final <- (
     legend.position = "bottom"
   )
 #-----------------------------------------  
-# plotting normalized data
+# Additional Graphs - plotting normalized data
 #-----------------------------------------
-plot_xcell_growth_norm_data_H23 <- norm_xCell_growth_data %>%
+xcell_DoseResponse_plot_norm_data_H23 <- xCell_DoseResponse_norm_data %>%
   filter(Cellline == "NCI-H23") %>%
   mutate(
-    Group = Dose
+    Group = Dose,
+    Timepoint=Time
   )
-plot_xcell_growth_norm_data_H23<-plot_xcell_growth_norm_data_H23[,-6]
-colnames(plot_xcell_growth_norm_data_H23)[6]<-"CellIndex"
+xcell_DoseResponse_plot_norm_data_H23<-xcell_DoseResponse_plot_norm_data_H23[,-5]
+colnames(xcell_DoseResponse_plot_norm_data_H23)[5]<-"CellIndex"
 
-p_xcell_growth_norm_H23 <- plot_xcell(
-  data = plot_xcell_growth_norm_data_H23,
+xcell_DoseResponse_p_norm_H23 <- plot_xcell(
+  data = xcell_DoseResponse_plot_norm_data_H23,
   title = "NCI-H23 - normalized Data",
   colours = xcell_colours,
   breaks = c(
@@ -262,17 +264,18 @@ p_xcell_growth_norm_H23 <- plot_xcell(
   y_minor = c(1, 3)
 )
 
-plot_norm_data_HCC44 <- norm_xCell_growth_data %>%
+xcell_DoseResponse_plot_norm_data_HCC44 <- xCell_DoseResponse_norm_data %>%
   filter(Cellline == "HCC44") %>%
   mutate(
-    Group = Dose
+    Group = Dose,
+    Timepoint=Time
   )
 
-plot_norm_data_HCC44<-plot_norm_data_HCC44[,-6]
-colnames(plot_norm_data_HCC44)[6]<-"CellIndex"
+xcell_DoseResponse_plot_norm_data_HCC44<-xcell_DoseResponse_plot_norm_data_HCC44[,-5]
+colnames(xcell_DoseResponse_plot_norm_data_HCC44)[5]<-"CellIndex"
 
-p_xcell_growth_norm_HCC44 <- plot_xcell(
-  data = plot_norm_data_HCC44,
+xcell_DoseResponse_p_norm_HCC44 <- plot_xcell(
+  data = xcell_DoseResponse_plot_norm_data_HCC44,
   title = "HCC44 - normalized Data",
   colours = xcell_colours,
   breaks = c(
@@ -291,15 +294,15 @@ p_xcell_growth_norm_HCC44 <- plot_xcell(
   y_minor = c(1, 3)
 )
 
-p_xcell_growth_norm_H23 <- p_xcell_growth_norm_H23 +
+xcell_DoseResponse_p_norm_H23 <- xcell_DoseResponse_p_norm_H23 +
   theme(legend.position = "right")
 
-p_xcell_growth_norm_HCC44 <-p_xcell_growth_norm_HCC44 +
+xcell_DoseResponse_p_norm_HCC44 <-xcell_DoseResponse_p_norm_HCC44 +
   theme(legend.position = "right")
 
-xCell_growth_norm_final <- (
-  p_xcell_growth_norm_H23 +
-    p_xcell_growth_norm_HCC44 +
+xCell_DoseResponse_p_norm_final <- (
+  xcell_DoseResponse_p_norm_H23 +
+    xcell_DoseResponse_p_norm_HCC44 +
     patchwork::plot_layout(
       ncol = 2,
       guides = "collect"
@@ -309,11 +312,11 @@ xCell_growth_norm_final <- (
     legend.position = "bottom"
   )
 #-----------------------------------------
-# growth rate
+# Additional Graphes - Growth rate
 #-----------------------------------------
-p_xcell_grwoth_GrowthRate <-
+xCell_DoseResponse_p_Growth <-
   ggplot(
-    xCell_growth_data,
+    xCell_DoseResponse_growth_rate_data,
     aes(
       x = Dose_num,
       y = k,
@@ -327,7 +330,7 @@ p_xcell_grwoth_GrowthRate <-
     colour = "black"
   ) +
   scale_fill_manual(
-    values = growth_colours,
+    values = DoseResponse_colours,
     breaks = c("HCC44", "NCI-H23")
   ) +
   scale_x_continuous(
@@ -373,11 +376,11 @@ p_xcell_grwoth_GrowthRate <-
     )
   )
 #-----------------------------------------
-# plotting AUC
+# Additional Graphes - plotting AUC
 #-----------------------------------------
-p_xcell_growth_AUC <-
+xcell_DoseResponse_p_AUC <-
   ggplot(
-    auc_xCell_growth_data_all,
+    xCell_DoseResponse_auc_data_all,
     aes(
       x = Dose_num,
       y = AUC_rel,
@@ -391,7 +394,7 @@ p_xcell_growth_AUC <-
     colour = "black"
   ) +
   scale_fill_manual(
-    values = growth_colours,
+    values = DoseResponse_colours,
     breaks = c("HCC44", "NCI-H23")
   ) +
   scale_x_continuous(
@@ -410,7 +413,7 @@ p_xcell_growth_AUC <-
     }
   ) +
   labs(
-    title = "Growth rate",
+    title = "DoseResponse rate",
     x = "Dose [Gy]",
     y = "relative AUC [a.u.]",
     fill = NULL
@@ -440,16 +443,16 @@ p_xcell_growth_AUC <-
 # Saving results
 #-----------------------------------------
 dir.create(
-  file.path(dirs$results, "08_xcelligance_growth"),
+  file.path(dirs$results, "08_xcelligance_DoseResponse"),
   showWarnings = FALSE,
   recursive = TRUE
 )
-setwd(file.path(dirs$results, "08_xcelligance_growth"))
+setwd(file.path(dirs$results, "08_xcelligance_DoseResponse"))
 
 #1. saving combined raw graph
 ggsave(
-  filename = "xCelligence_doseResponse_all.jpeg",
-  plot = xCell_growth_raw_final,
+  filename = "08_xCelligence_doseResponse_raw_all.jpeg",
+  plot = xCell_DoseResponse_p_raw_final,
   width = 21*2/3,
   height = 7,
   units = "cm",
@@ -457,8 +460,8 @@ ggsave(
 )
 
 ggsave(
-  filename = "xCelligence_doseResponse_all.pdf",
-  plot = xCell_growth_raw_final,
+  filename = "08_xCelligence_doseResponse_raw_all.pdf",
+  plot = xCell_DoseResponse_p_raw_final,
   width = 21*2/3,
   height = 7,
   units = "cm"
@@ -466,8 +469,8 @@ ggsave(
 
 #2. saving NCI-H23 raw graph
 ggsave(
-  filename = "xCelligence_doseResponse_H23.jpeg",
-  plot = p_xcell_growth_raw_H23,
+  filename = "08_xCelligence_doseResponse_raw_H23.jpeg",
+  plot = xcell_DoseResponse_p_raw_H23,
   width = 21*1/3,
   height = 7,
   units = "cm",
@@ -475,8 +478,8 @@ ggsave(
 )
 
 ggsave(
-  filename = "xCelligence_doseResponse_H23.pdf",
-  plot = p_xcell_growth_raw_H23,
+  filename = "08_xCelligence_doseResponse_raw_H23.pdf",
+  plot = xcell_DoseResponse_p_raw_H23,
   width = 21*2/3,
   height = 7,
   units = "cm"
@@ -484,8 +487,8 @@ ggsave(
 
 #3. saving HCC44 raw graph
 ggsave(
-  filename = "xCelligence_doseResponse_HCC44.jpeg",
-  plot = p_xcell_growth_raw_HCC44,
+  filename = "08_xCelligence_doseResponse_raw_HCC44.jpeg",
+  plot = xcell_DoseResponse_p_raw_HCC44,
   width = 21*1/3,
   height = 7,
   units = "cm",
@@ -493,17 +496,17 @@ ggsave(
 )
 
 ggsave(
-  filename = "xCelligence_doseResponse_HCC44.pdf",
-  plot = p_xcell_growth_raw_HCC44,
+  filename = "08_xCelligence_doseResponse_raw_HCC44.pdf",
+  plot = xcell_DoseResponse_p_raw_HCC44,
   width = 21*2/3,
   height = 7,
   units = "cm"
 )
-
+            
 #4. saving combined normalised graphes 
 ggsave(
-  filename = "xCelligence_doseResponse_norm.jpeg",
-  plot = xCell_growth_norm_final,
+  filename = "08_xCelligence_doseResponse_norm_all.jpeg",
+  plot = xCell_DoseResponse_p_norm_final,
   width = 21*2/3,
   height = 7,
   units = "cm",
@@ -511,8 +514,8 @@ ggsave(
 )
 
 ggsave(
-  filename = "xCelligence_doseResponse_norm.pdf",
-  plot = xCell_growth_norm_final,
+  filename = "08_xCelligence_doseResponse_norm_all.pdf",
+  plot = xCell_DoseResponse_p_norm_final,
   width = 21*2/3,
   height = 7,
   units = "cm",
@@ -521,8 +524,8 @@ ggsave(
 
 #5. saving combined normalised H23 graphes 
 ggsave(
-  filename = "xCelligence_doseResponse_norm_H23.jpeg",
-  plot = p_xcell_growth_norm_H23,
+  filename = "08_xCelligence_doseResponse_norm_H23.jpeg",
+  plot = xcell_DoseResponse_p_norm_H23,
   width = 21*1/3,
   height = 7,
   units = "cm",
@@ -530,8 +533,8 @@ ggsave(
 )
 
 ggsave(
-  filename = "xCelligence_doseResponse_norm_H23.pdf",
-  plot = p_xcell_growth_norm_H23,
+  filename = "08_xCelligence_doseResponse_norm_H23.pdf",
+  plot = xcell_DoseResponse_p_norm_H23,
   width = 21*1/3,
   height = 7,
   units = "cm",
@@ -540,8 +543,8 @@ ggsave(
 
 #6. saving HCC44 combined normalied graphes 
 ggsave(
-  filename = "xCelligence_doseResponse_norm_HCC44.jpeg",
-  plot = p_xcell_growth_norm_HCC44,
+  filename = "08_xCelligence_doseResponse_norm_HCC44.jpeg",
+  plot = xcell_DoseResponse_p_norm_HCC44,
   width = 21*1/3,
   height = 7,
   units = "cm",
@@ -549,18 +552,18 @@ ggsave(
 )
 
 ggsave(
-  filename = "xCelligence_doseResponse_norm_HCC44.pdf",
-  plot = p_xcell_growth_norm_HCC44,
+  filename = "08_xCelligence_doseResponse_norm_HCC44.pdf",
+  plot = xcell_DoseResponse_p_norm_HCC44,
   width = 21*1/3,
   height = 7,
   units = "cm",
   dpi = 600
 ) 
 
-#7. saving graph for data
+#7. saving growth rate graph for data
 ggsave(
-  filename = "xCelligence_doseResponse_GrowthRate.jpeg",
-  plot = p_xcell_grwoth_GrowthRate,
+  filename = "08_xCelligence_doseResponse_GrowthRate.jpeg",
+  plot = xCell_DoseResponse_p_Growth,
   width = 21*1/3,
   height = 7,
   units = "cm",
@@ -568,8 +571,8 @@ ggsave(
 )
 
 ggsave(
-  filename = "xCelligence_doseResponse_GrowthRate.pdf",
-  plot = p_xcell_grwoth_GrowthRate,
+  filename = "08_xCelligence_doseResponse_GrowthRate.pdf",
+  plot = xCell_DoseResponse_p_Growth,
   width = 21*1/3,
   height = 7,
   units = "cm"
@@ -577,8 +580,8 @@ ggsave(
 
 #8. saving graphes for AUC
 ggsave(
-  filename = "xCelligence_doseResponse_AUC.jpeg",
-  plot = p_xcell_growth_AUC,
+  filename = "08_xCelligence_doseResponse_AUC.jpeg",
+  plot = xcell_DoseResponse_p_AUC,
   width = 21*1/3,
   height = 7,
   units = "cm",
@@ -586,100 +589,49 @@ ggsave(
 )
 
 ggsave(
-  filename = "xCelligence_doseResponse_AUC.pdf",
-  plot = p_xcell_growth_AUC,
-  width = 21*1/3,
-  height = 7,
-  units = "cm",
-  dpi = 600
-) 
-
-
-#9. saving graphes for AUC
-ggsave(
-  filename = "xCelligence_doseResponse_AUC.jpeg",
-  plot = p_xcell_growth_AUC,
-  width = 21*2/3,
-  height = 7,
-  units = "cm",
-  dpi = 600
-)
-
-ggsave(
-  filename = "xCelligence_doseResponse_AUC.pdf",
-  plot = p_xcell_growth_AUC,
+  filename = "08_xCelligence_doseResponse_AUC.pdf",
+  plot = xcell_DoseResponse_p_AUC,
   width = 21*1/3,
   height = 7,
   units = "cm",
   dpi = 600
 ) 
 
-#10. saving graphes for AUC
-ggsave(
-  filename = "xCelligence_doseResponse_AUC.jpeg",
-  plot = p_xcell_growth_AUC,
-  width = 21*1/3,
-  height = 7,
-  units = "cm",
-  dpi = 600
-)
-
-ggsave(
-  filename = "xCelligence_doseResponse_AUC.pdf",
-  plot = p_xcell_growth_AUC,
-  width = 21*1/3,
-  height = 7,
-  units = "cm",
-  dpi = 600
-) 
-
-#11. saving tmax
+#9. saving tmax
 write.csv(
-  tmax_growth,
-  file = file.path(dirs$results, "08_xcelligance_growth", "xcelligence_growth_tmax.csv"),
+  xCell_DoseResponse_tmax,
+  file = file.path(dirs$results, "08_xcelligance_DoseResponse", "xcelligence_DoseResponse_tmax.csv"),
   row.names = FALSE
 )
+xCell_DoseResponse_stat_data_all
 
-#12. saving linear growth model
-write.csv(
-  broom::tidy(xCell_growth_rate_lm),
+#10. saving linear Growth model
+write.csv(xCell_DoseResponse_significance_Growth_rate_lm,
   file = file.path(
     dirs$results,
-    "08_xcelligance_growth",
-    "xcelligence_growth_linearModel.csv"
+    "08_xcelligance_DoseResponse",
+    "xcelligence_DoseResponse_GrowthRate.csv"
   ),
   row.names = FALSE
 )
 
-#13. saving linear growth time model
-write.csv(
-  broom::tidy(stat_xCell_growth_lin_model),
-  file = file.path(
-    dirs$results,
-    "08_xcelligance_growth",
-    "xcelligence_growth_linearModel_time.csv"
-  ),
-  row.names = FALSE
+#11. saving statistics 
+write.csv(xCell_DoseResponse_stat_data_all,
+          file = file.path(
+            dirs$results,
+            "08_xcelligance_DoseResponse",
+            "xcelligence_DoseResponse_stats.csv"
+          ),
+          row.names = FALSE
 )
 
-#14. saving AOV
+#13. saving significance norm
 write.csv(
-  broom::tidy(xCell_growth_aov_lin_model),
+  as.data.frame(xCell_DoseResponse_significance_norm_lm$contrasts),
   file = file.path(
     dirs$results,
-    "08_xcelligance_growth",
-    "xcelligence_growth_AOV_time.csv"
-  ),
-  row.names = FALSE
-)
-
-#15. saving AUC
-write.csv(
-  broom::tidy(xCell_growth_auc_lin_model),
-  file = file.path(
-    dirs$results,
-    "08_xcelligance_growth",
-    "xcelligence_growth_AUC_time.csv"
+    "08_xcelligance_DoseResponse",
+    "xcelligence_DoseResponse_AOV_norm.csv"
   ),
   row.names = FALSE
 )
