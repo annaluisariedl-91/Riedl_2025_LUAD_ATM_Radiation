@@ -1,40 +1,40 @@
 #------------------------------------------
 #Set directory
 #------------------------------------------
-setwd(file.path(base_dir,"functional_assays","CFA","Exp2_DoseResponse2Gy","raw")) #replace with path on your own PC
+setwd(file.path(dirs$CFA,"Exp2_DoseResponse2Gy","raw")) #replace with path on your own PC
 #------------------------------------------
 #loading raw data
 #------------------------------------------
-HCC44_2Gy_files <- c(
+CFA_2Gy_HCC44_files <- c(
   "CFA_1_2Gy_HCC44_rep1.csv",
   "CFA_1_2Gy_HCC44_rep2.csv",
   "CFA_1_2Gy_HCC44_rep3.csv"
 )
 
-HCC44_2Gy_rep <- lapply(
-  HCC44_2Gy_files,
+CFA_2Gy_HCC44_rep <- lapply(
+  CFA_2Gy_HCC44_files,
   function(x) analyse_CFA_rep(read.csv(x))
 )
 
-H23_2Gy_files <- c(
+CFA_2Gy_H23_files <- c(
   "CFA_1_2Gy_H23_rep1.csv",
   "CFA_1_2Gy_H23_rep2.csv",
   "CFA_1_2Gy_H23_rep3.csv",
   "CFA_1_2Gy_H23_rep4.csv"
 )
 
-H23_2Gy_rep <- lapply(
-  H23_2Gy_files,
+CFA_2Gy_H23_rep <- lapply(
+  CFA_2Gy_H23_files,
   function(x) analyse_CFA_rep(read.csv(x))
 )
 #------------------------------------------
 # preparing for modelling
 #------------------------------------------
-stat_data_CFA_2Gy <- bind_rows(
-    make_CFA_data(H23_2Gy_rep, "NCI-H23") %>%
+CFA_2Gy_stat_data <- bind_rows(
+    make_CFA_data(CFA_2Gy_H23_rep, "NCI-H23") %>%
       mutate(Cellline = "NCI-H23"),
     
-    make_CFA_data(HCC44_2Gy_rep, "HCC44") %>%
+    make_CFA_data(CFA_2Gy_HCC44_rep, "HCC44") %>%
       mutate(Cellline = "HCC44")
   ) %>%
   filter(!is.na(SF), !is.nan(SF)) %>%
@@ -47,55 +47,52 @@ stat_data_CFA_2Gy <- bind_rows(
     dose_f = factor(Dose)
   )
 
-stat_data_CFA_2Gy$Cellline <- relevel(
-  stat_data_CFA_2Gy$Cellline,
+CFA_2Gy_stat_data$Cellline <- relevel(
+  CFA_2Gy_stat_data$Cellline,
   ref = "HCC44"
-)
-#------------------------------------------
-# ANOVA
-#------------------------------------------
-mod_CFA_2Gy <- lme(
-  fixed = log_sf_adj ~ dose_f + Cellline,
-  random = ~ 1 | exp_id,
-  data = stat_data_CFA_2Gy,
-  method = "REML"
-)
-
-summary(mod_CFA_2Gy)
-
-anova_CFA_2Gy <- anova(mod_CFA_2Gy)
-#------------------------------------------
-# Post-hoc comparisons 
-#------------------------------------------
-emm_CFA_2Gy <- emmeans(
-  mod_CFA_2Gy,
-  ~ Cellline | dose_f
-)
-
-posthoc_CFA_2Gy <- pairs(
-  emm_CFA_2Gy,
-  adjust = "tukey"
 )
 #------------------------------------------
 # linear-quadratic fit
 #------------------------------------------
-mean_data_CFA_2Gy <- stat_data_CFA_2Gy %>%
+CFA_2Gy_mean_data<- CFA_2Gy_stat_data %>%
   group_by(Cellline, Dose) %>%
   summarise(
     mean_log_sf = mean(log_sf_adj, na.rm = TRUE),
     .groups = "drop"
   )
 
-coefficients_CFA_2Gy <- mean_data_CFA_2Gy %>%
+CFA_2Gy_coefficients <- CFA_2Gy_mean_data %>%
   group_split(Cellline) %>%
-  setNames(unique(mean_data_CFA_2Gy$Cellline)) %>%
+  setNames(unique(CFA_2Gy_mean_data$Cellline)) %>%
   lapply(fit_lq_model)
+#------------------------------------------
+# Welsh t Test
+#------------------------------------------
+CFA_2Gy_t.test <- CFA_2Gy_stat_data %>%
+  filter(Dose == 2, sf_adj > 0) %>%
+  mutate(log_SF = log(sf_adj)) %>%
+  {
+    t.test(log_SF ~ Cellline, data = .)
+  }
+
+CFA_2Gy_res_p <- CFA_2Gy_t.test$p.value
+
+CFA_2Gy_sig_label <- paste0(
+  "SF(2Gy): HCC44 vs. NCI-H23,\n ",
+  dplyr::case_when(
+    CFA_2Gy_res_p < 0.001 ~ "***",
+    CFA_2Gy_res_p < 0.01  ~ "**",
+    CFA_2Gy_res_p < 0.05  ~ "*",
+    TRUE      ~ "n.s."
+  ),
+  " (p = ", format.pval(CFA_2Gy_res_p, digits = 2, eps = 0.001), ")"
+)
 #------------------------------------------
 # binding for plotting
 #------------------------------------------
-CFA_plot_data_2Gy <- bind_rows(
-  make_stat_CFA(H23_2Gy_rep, "NCI-H23"),
-  make_stat_CFA(HCC44_2Gy_rep, "HCC44")
+CFA_2Gy_plot_data <- bind_rows(
+  make_stat_CFA(CFA_2Gy_H23_rep, "NCI-H23"),
+  make_stat_CFA(CFA_2Gy_HCC44_rep, "HCC44")
 ) %>%
   group_by(Cellline, Dose) %>%
   summarise(
@@ -105,33 +102,31 @@ CFA_plot_data_2Gy <- bind_rows(
     .groups = "drop"
   )
 
-dseq <- seq(0, 2, length.out = 200)
-
-LQ_data_CFA_2Gy <- bind_rows(
+CFA_2Gy_dseq <- seq(0, 2, length.out = 200)
+CFA_2Gy_LQ_data <- bind_rows(
   data.frame(
     Cellline = "HCC44",
-    Dose = dseq,
+    Dose = CFA_2Gy_dseq,
     SF = exp(
-      -(coefficients_CFA_2Gy[["HCC44"]]["alpha"] * dseq +
-          coefficients_CFA_2Gy[["HCC44"]]["beta"] * dseq^2)
+      -(CFA_2Gy_coefficients[["HCC44"]]["alpha"] * CFA_2Gy_dseq +
+          CFA_2Gy_coefficients[["HCC44"]]["beta"] * CFA_2Gy_dseq^2)
     )
   ),
   data.frame(
     Cellline = "H23",
-    Dose = dseq,
+    Dose = CFA_2Gy_dseq,
     SF = exp(
-      -(coefficients_CFA_2Gy[["NCI-H23"]]["alpha"] * dseq +
-          coefficients_CFA_2Gy[["NCI-H23"]]["beta"] * dseq^2)
+      -(CFA_2Gy_coefficients[["NCI-H23"]]["alpha"] * CFA_2Gy_dseq +
+          CFA_2Gy_coefficients[["NCI-H23"]]["beta"] * CFA_2Gy_dseq^2)
     )
   )
 )
 
-CFA_colours_2Gy <- c(
-  "HCC44"  = "#4294F7",
-  "NCI-H23"    = "#5F8F29"
-)
+CFA_2Gy_colours <- c(
+  "HCC44"  = "#0196FF",
+  "NCI-H23"    = "#4C8F00")
 
-CFA_shapes_2Gy <- c(
+CFA_2Gy_shapes <- c(
   "HCC44" = 22,
   "NCI-H23"   = 21
 )
@@ -140,10 +135,25 @@ CFA_shapes_2Gy <- c(
 #------------------------------------------
 pd <- position_dodge(width = 0.10)
 
-CFA_plot_2Gy <- ggplot() +
+CFA_2Gy_plot <- ggplot() +
+  # mean value
+  geom_point(
+    data = CFA_2Gy_plot_data,
+    aes(
+      x = Dose,
+      y = SF_mean,
+      fill = Cellline,
+      shape = Cellline,
+      group = Cellline
+    ),
+    position = pd,
+    size = 2,
+    stroke = 0.6,
+    colour = "black"
+  ) +
   # Linear-quadratic fits
   geom_line(
-    data = LQ_data_CFA_2Gy,
+    data = CFA_2Gy_LQ_data,
     aes(
       x = Dose,
       y = SF,
@@ -155,7 +165,7 @@ CFA_plot_2Gy <- ggplot() +
   ) +
   # SEM
   geom_errorbar(
-    data = CFA_plot_data_2Gy,
+    data = CFA_2Gy_plot_data,
     aes(
       x = Dose,
       ymin = pmax(SF_mean - SF_SEM, 0.001),
@@ -167,37 +177,22 @@ CFA_plot_2Gy <- ggplot() +
     linewidth = 0.5,
     colour = "black"
   ) +
-  # mean value
-  geom_point(
-    data = CFA_plot_data_2Gy,
-    aes(
-      x = Dose,
-      y = SF_mean,
-      fill = Cellline,
-      shape = Cellline,
-      group = Cellline
-    ),
-    position = pd,
-    size = 2.5,
-    stroke = 0.6,
-    colour = "black"
-  ) +
   scale_fill_manual(
-    values = CFA_colours_2Gy,
+    values = CFA_2Gy_colours,
     breaks = c("HCC44", "NCI-H23"),
     labels = c("HCC44", "NCI-H23")
   ) +
   scale_shape_manual(
-    values = CFA_shapes_2Gy,
+    values = CFA_2Gy_shapes,
     breaks = c("HCC44", "NCI-H23"),
     labels = c("HCC44", "NCI-H23")
   ) +
   # logarithmic y axis
   scale_y_log10(
     limits = c(0.01, 2),
-    breaks = c(0.01, 0.1, 1),
-    labels = scales::label_math(10^.x)
-  ) +
+    breaks = c(1e-0,1e-1, 1e-2, 1e-3),
+    labels = expression(10^0,10^-1, 10^-2, 10^-3)
+    ) +
   scale_x_continuous(
     limits = c(-0.05, 2.1),
     breaks = c(0, 0.5, 1, 1.5, 2),
@@ -211,18 +206,22 @@ CFA_plot_2Gy <- ggplot() +
   ggprism::theme_prism(base_size = 8) +
   theme(
     axis.title = element_text(
-      size = 8,
+      size = 12,
       face = "bold"
     ),
     axis.text = element_text(
-      size = 7,
+      size = 10,
       colour = "black"
     ),
     legend.position = "bottom",
     legend.direction = "horizontal",
     legend.title = element_blank(),
-    legend.text = element_text(size = 6),
-    
+    legend.text = element_text(size = 10),
+    axis.text.x = element_text(
+      face = "plain",
+      size = 10,
+      colour = "black"
+    ),
     panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(),
     plot.margin = margin(
@@ -241,20 +240,29 @@ CFA_plot_2Gy <- ggplot() +
     )
   )
 
+CFA_2Gy_plot <- CFA_2Gy_plot +
+  annotate(
+    "text",
+    x = 0.1,
+    y = 0.02,
+    label = CFA_2Gy_sig_label,
+    size = 2.5,
+    hjust=0
+  )
 #------------------------------------------
 # saving results
 #------------------------------------------
 dir.create(
-  file.path(dirs$results, "05_CFA_2Gy"),
+  file.path(dirs$results, "05_ColonyFormingAssay_2Gy"),
   showWarnings = FALSE,
   recursive = TRUE
 )
-setwd(file.path(dirs$results, "05_CFA_2Gy"))
+setwd(file.path(dirs$results, "05_ColonyFormingAssay_2Gy"))
 
 # 1. saving figure
 ggsave(
-  filename = file.path(dirs$results, "05_CFA_2Gy", "CFA_2Gy_gplot.jpeg"),
-  plot = CFA_plot_2Gy,
+  filename = "05_CFA_2Gy_HCC44_H23_plot.jpeg",
+  plot = CFA_2Gy_plot,
   width = 21/3,
   height = 7,
   units = "cm",
@@ -262,60 +270,48 @@ ggsave(
 )
 
 ggsave(
-  filename = file.path(dirs$results, "05_CFA_2Gy", "CFA_2Gy_gplot.pdf"),
-  plot = CFA_plot_2Gy,
+  filename ="05_CFA_2Gy_HCC44_H23_plot.pdf",
+  plot = CFA_2Gy_plot,
   width = 21/3,
   height = 7,
   units = "cm",
   dpi = 300
 )
 
-# 2. saving ANOVA 
-ANOVA_results_CFA_2Gy <- as.data.frame(
-  anova(mod_CFA_2Gy)
+# 2. Welsh t-test
+CFA_2Gy_t_test_results <- data.frame(
+  Comparison = "HCC44 vs NCI-H23",
+  t_value = unname(CFA_2Gy_t.test$statistic),
+  df = unname(CFA_2Gy_t.test$parameter),
+  p_value = CFA_2Gy_t.test$p.value,
+  CI_lower = CFA_2Gy_t.test$conf.int[1],
+  CI_upper = CFA_2Gy_t.test$conf.int[2],
+  Mean_HCC44 = unname(CFA_2Gy_t.test$estimate[1]),
+  Mean_H23 = unname(CFA_2Gy_t.test$estimate[2])
 )
-
-ANOVA_results_CFA_2Gy$Effect <- rownames(ANOVA_results_CFA_2Gy)
-rownames(ANOVA_results_CFA_2Gy) <- NULL
-
-ANOVA_results_CFA_2Gy <- ANOVA_results_CFA_2Gy %>%
-  dplyr::select(Effect, dplyr::everything())
-
 write.csv(
-  ANOVA_results_CFA_2Gy,
-  file = file.path(dirs$results, "05_CFA_2Gy", "CFA_2Gy_ANOVA.csv"),
+  CFA_2Gy_t_test_results,
+  file = file.path(dirs$results, "05_ColonyFormingAssay_2Gy", "05_CFA_2Gy_HCC44_H23_ANOVA.csv"),
   row.names = FALSE
 )
 
-# 3. saving Post-hoc-Analysis 
-posthoc_results_CFA_2Gy <- as.data.frame(
-  summary(posthoc_CFA_2Gy)
-)
-
-write.csv(
-  posthoc_results_CFA_2Gy,
-  file = file.path(dirs$results, "05_CFA_2Gy", "CFA_2Gy_posthoc.csv"),
-  row.names = FALSE
-)
-
-# 4. saving LQ-coeffizient 
-LQ_results_CFA_2Gy <- do.call(
+# 3. saving LQ-coeffizient 
+CFA_2Gy_LQ_results <- do.call(
   rbind,
-  lapply(names(coefficients_CFA_2Gy), function(cell) {
-    
+  lapply(names(CFA_2Gy_coefficients), function(cell) {
     data.frame(
       Cellline = cell,
-      alpha = unname(coefficients_CFA_2Gy[[cell]]["alpha"]),
-      beta  = unname(coefficients_CFA_2Gy[[cell]]["beta"])
+      alpha = unname(CFA_2Gy_coefficients[[cell]]["alpha"]),
+      beta  = unname(CFA_2Gy_coefficients[[cell]]["beta"])
     )
   })
 )
 
-rownames(LQ_results_CFA_2Gy) <- NULL
+rownames(CFA_2Gy_LQ_results) <- NULL
 
 write.csv(
-  LQ_results_CFA_2Gy,
-  file = file.path(dirs$results, "05_CFA_2Gy", "CFA_2Gy_LQ_coefficients.csv"),
+  CFA_2Gy_LQ_results,
+  file = file.path(dirs$results, "05_ColonyFormingAssay_2Gy", "05_CFA_2Gy_HCC44_H23_LQ_coefficients.csv"),
   row.names = FALSE
 )
 #------------------------------------------
