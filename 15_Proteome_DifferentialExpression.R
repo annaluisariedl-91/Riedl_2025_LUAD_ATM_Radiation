@@ -33,6 +33,8 @@ dir.create(
   showWarnings = FALSE,
   recursive = TRUE
 )
+
+setwd(file.path(dirs$results, "14_Transcriptome_DifferentialExpression"))
 #--------------------------------------------
 # binding data
 #--------------------------------------------
@@ -132,7 +134,7 @@ stopifnot(
 #--------------------------------------------
 # comparison between radiadted and controll cells
 for (cellline in c("H23", "HCC44")) {
-  for (time in c("0h", "2h", "6h", "24h", "48h")) {
+  for (time in c("0h","2h", "6h", "24h", "48h")) {
     wide <- get_wide(cellline, time)
     for (treatment in c("0Gy", "2Gy")) {
       cols <- paste0(treatment, "_", 1:4)
@@ -160,7 +162,7 @@ for (cellline in c("H23", "HCC44")) {
       write_output(
         raw,
         paste0(
-          "raw_p", cellline, "_", time, "_",
+          "15_Proteome_raw_p", cellline, "_", time, "_",
           treatment_file, ".csv"
         )
       )
@@ -177,7 +179,7 @@ for (cellline in c("H23", "HCC44")) {
     means$SYMBOL <- as.character(means$SYMBOL)
     write_output(
       means,
-      paste0("mean_p", cellline, "_", time, ".csv")
+      paste0("15_Proteome_mean_p", cellline, "_", time, ".csv")
     )
     comparison_dat_intraCell <- proteome_long %>%
       dplyr::filter(
@@ -199,7 +201,7 @@ for (cellline in c("H23", "HCC44")) {
     )
     write_output(
       stat_results_intraCell,
-      paste0("stat_p", cellline, "_", time, ".csv")
+      paste0("15_Proteome_stat_p", cellline, "_", time, ".csv")
     )
   }
 }
@@ -217,8 +219,8 @@ for (time in c("2h", "6h", "24h", "48h")) {
       )
     prefix <- ifelse(
       treatment == "2Gy",
-      "stat_pRAD_",
-      "stat_pCon_"
+      "15_Proteome_stat_pRAD_",
+      "15_Proteome_stat_pCon_"
     )
     write_output(
       run_comparison(
@@ -235,6 +237,6 @@ for (time in c("2h", "6h", "24h", "48h")) {
 comparison_0h <- proteome_long |>
   dplyr::filter(Time=='0h') |>
   dplyr::mutate(condition=Cellline)
-write_output(run_comparison(comparison_0h,'HCC44','H23'),'stat_pCon_0h.csv')
+write_output(run_comparison(comparison_0h,'HCC44','H23'),'15_Proteome_stat_pCon_0h.csv')
 #-----------------------------------------------
 setwd(dirs$code)
