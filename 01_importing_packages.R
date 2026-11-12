@@ -53,7 +53,8 @@ bioc_packages <- c(
   "limma",
   "msigdbr",
   "protti",
-  "STRINGdb"
+  "STRINGdb",
+  "openxlsx"
 )
 
 missing_cran <- setdiff(
@@ -87,6 +88,7 @@ library(readr)
 library(stringr)
 library(tibble)
 library(tidyr)
+library(openxlsx)
 
 # Statistical analysis
 library(broom)
@@ -116,6 +118,7 @@ library(igraph)
 library(pheatmap)
 library(STRINGdb)
 library(tidygraph)
+library(gtable)
 
 # Visualization
 library(corrplot)
@@ -126,10 +129,6 @@ library(patchwork)
 library(RColorBrewer)
 library(VennDiagram)
 library(viridis)
-
-# Survival analysis
-library(survival)
-library(survminer)
 
 #-----------------------------------------------
 setwd(dirs$code)
