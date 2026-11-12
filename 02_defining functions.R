@@ -1,15 +1,6 @@
 #------------------------------------------
 # General functions
 #------------------------------------------
-#defining scaling function
-range01 <- function(x) {
-  rng <- range(x, na.rm = TRUE)
-  if (rng[2] - rng[1] == 0) {
-    return(rep(0, length(x)))
-  }
-  (x - rng[1]) / (rng[2] - rng[1])
-}
-
 # defining base design without package
 theme_prism_xcell <- function() {
   theme_classic(base_size = 9) +
@@ -97,8 +88,30 @@ theme_prism_compact <- function(
     )
 }
 #------------------------------------------
-# Functional assays | Colony forming assays (CFA)
+# Functional assays  | Colony forming assays (CFA)
 #------------------------------------------
+# binding for 2 Gy data of HCC44 and NCI-H23
+make_CFA_data <- function(data,
+                          Cellline,
+                          treatment = NULL) {
+  result <- purrr::map_dfr(
+    data,
+    ~ .x$summary[, c("Dose", "SF")],
+    .id = "experiment"
+  ) %>%
+    mutate(
+      Cellline = Cellline,
+      experiment = factor(experiment)
+    )
+  if (!is.null(treatment)) {
+    result <- result %>%
+      mutate(
+        Treatment = treatment
+      )
+  }
+  result
+}
+
 # binding counting data and calculation of platting efficiency
 analyse_CFA_rep <- function(data,
                             rows = NULL,
@@ -171,29 +184,8 @@ fit_lq_model <- function(df) {
   )
 }
 
-# binding for 2 Gy data of HCC44 and NCI-H23
-make_CFA_data <- function(data,
-                          cellline,
-                          treatment = NULL) {
-  result <- purrr::map_dfr(
-    data,
-    ~ .x$summary[, c("Dose", "SF")],
-    .id = "experiment"
-  ) %>%
-    mutate(
-      cellline = cellline,
-      experiment = factor(experiment)
-    )
-  if (!is.null(treatment)) {
-    result <- result %>%
-      mutate(
-        Treatment = treatment
-      )
-  }
-  result
-}
 #------------------------------------------
-# function assays | CFA with AZD1390 (HCC44,NCI-H23)
+# function assays    | CFA with AZD1390 (HCC44,NCI-H23)
 #------------------------------------------
 # linear quadratic model for AZD1390 and DMSO treated samples
 fit_LQ_treatments <- function(data, selected_cellline) {
@@ -270,7 +262,7 @@ plot_CFA_AZD <- function(plot_data,
                          xmax,
                          significance = NULL) {
   dat <- plot_data %>%
-    filter(cellline == selected_cellline)
+    filter(Cellline == selected_cellline)
   dseq <- seq(0, xmax, length.out = 200)
   lq_dat <- purrr::imap_dfr(
     coefficients,
@@ -287,7 +279,7 @@ plot_CFA_AZD <- function(plot_data,
     dat,
     aes(
       x = Dose,
-      y = SF_mean,
+      y = adj_log_sf,
       fill = Treatment,
       shape = Treatment
     )
@@ -309,7 +301,7 @@ plot_CFA_AZD <- function(plot_data,
         ymin = pmax(SF_mean - SF_SEM, 1e-4),
         ymax = SF_mean + SF_SEM
       ),
-      width = 0.08,
+      width = 0.5,
       linewidth = 0.5,
       colour = "black"
     ) +
@@ -320,12 +312,12 @@ plot_CFA_AZD <- function(plot_data,
     ) +
     annotate(
       "text",
-      x = xmax * 0.25,
-      y = 100,
+      x = 0.2,
+      y = 200,
       label = DEF_label,
       hjust = 0,
-      vjust = 1,
-      size = 2.5
+      vjust = 0.5,
+      size = 2.25
     ) +
     scale_fill_manual(
       values = CFA_AZD_colours
@@ -346,9 +338,9 @@ plot_CFA_AZD <- function(plot_data,
     ) +
      scale_x_continuous(
       limits = c(0, xmax),
-      breaks = c(0, 4, 8)[c(0, 4, 8) <= xmax],
+      breaks = c(0,2, 4, 8)[c(0,2, 4,6, 8) <= xmax],
       minor_breaks = seq(0, xmax, 2),
-      expand = expansion(mult = c(0.01, 0.01))
+      expand = expansion(mult = c(0.01, 0.02))
     ) +
     labs(
       title = selected_cellline,
@@ -362,22 +354,22 @@ plot_CFA_AZD <- function(plot_data,
     ) +
     theme(
       axis.title = element_text(
-        size = 8,
+        size = 12,
         face = "bold"
       ),
       axis.text = element_text(
-        size = 7,
+        size = 10,
         colour = "black"
       ),
       plot.title = element_text(
-        size = 9,
+        size = 14,
         face = "bold",
         hjust = 0.5
       ),
       legend.position = "bottom",
       legend.direction = "horizontal",
       legend.text = element_text(
-        size = 6
+        size = 8
       ),
       panel.grid.major = element_blank(),
       panel.grid.minor = element_blank()
@@ -428,7 +420,7 @@ make_DEF_label <- function(def_data, sf = 0.10) {
   )
 }
 #------------------------------------------
-# function assays | CFA with AZD1390 (A529, HCC78, HCC827)
+# function assays    | CFA with AZD1390 (A529, HCC78, HCC827)
 #------------------------------------------
 # statistics for AZD1390 treatment of A529, HCC78 and HCC827 
 analyse_CFA_model <- function(data, cellline) {
@@ -478,8 +470,9 @@ calc_DEF <- function(coefficients, sf = 0.1) {
     DEF_10nM = d_control / d_treat_10nM
   )
 }
+
 #------------------------------------------
-# function assays | xCelligence impedance measurment
+# function assays    | xCelligence impedance measurment
 #-----------------------------------------
 # binding measurments for analysis
 prepare_xCell <- function(file) {
@@ -563,10 +556,38 @@ plot_xcell <- function(data,
         )
       )
     ) +
-    theme_prism_xcell()
+    theme_prism_xcell()+
+    theme(
+      axis.title = element_text(
+        size = 12,
+        face = "bold"
+      ),
+      axis.text = element_text(
+        size = 10,
+        colour = "black"
+      ),
+      plot.title = element_text(
+        size = 12,
+        face = "bold",
+        hjust = 0.5
+      ),
+      legend.position = "bottom",
+      legend.direction = "horizontal",
+      legend.text = element_text(
+        size = 10
+      ),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      plot.margin = margin(
+        t = 5,
+        r = 10,
+        b = 5,
+        l = 10
+      )
+    )
 }
 #-----------------------------------------
-# function assays | xCelligence with AZD1390 and DMSO
+# function assays    | xCelligence with AZD1390 and DMSO
 #-----------------------------------------
 # prepare impedance data of treatment with AZD1390 and DMSO combined with radiation
 prepare_xcell_AZD <- function(file,
@@ -617,9 +638,94 @@ prepare_xcell_AZD <- function(file,
       Dose = gsub("^05", "0.5", Dose)
     )
 }
-#------------------------------
-# function assays | MTS Viability Assay
-#-----------------------------
+
+plot_xcell <- function(data,
+                       title,
+                       colours,
+                       breaks = NULL,
+                       xmax,
+                       ymax,
+                       ymin,
+                       x_breaks = NULL,
+                       x_minor = NULL,
+                       y_breaks = NULL,
+                       y_minor = NULL) {
+  ggplot(
+    data,
+    aes(
+      x = as.numeric(Timepoint),
+      y = CellIndex,
+      colour = Group
+    )
+  ) +
+    geom_point(
+      size = 0.35,
+      alpha = 0.9
+    ) +
+    scale_colour_manual(
+      values = colours,
+      breaks = breaks
+    ) +
+    scale_x_continuous(
+      breaks = x_breaks,
+      minor_breaks = x_minor,
+      limits = c(0, xmax),
+      expand = expansion(mult = c(0, 0))
+    ) +
+    scale_y_continuous(
+      breaks = y_breaks,
+      minor_breaks = y_minor,
+      expand = expansion(mult = c(0, 0))
+    ) +
+    coord_cartesian(
+      ylim = c(ymin, ymax)
+    ) +
+    labs(
+      title = title,
+      x = "Time [h]",
+      y = "Cell Index [a.u.]"
+    ) +
+    guides(
+      colour = guide_legend(
+        override.aes = list(
+          size = 2.5,
+          alpha = 1
+        )
+      )
+    ) +
+    theme_prism_xcell()+
+    theme(
+      axis.title = element_text(
+        size = 12,
+        face = "bold"
+      ),
+      axis.text = element_text(
+        size = 10,
+        colour = "black"
+      ),
+      plot.title = element_text(
+        size = 12,
+        face = "bold",
+        hjust = 0.5
+      ),
+      legend.position = "bottom",
+      legend.direction = "horizontal",
+      legend.text = element_text(
+        size = 10
+      ),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      plot.margin = margin(
+        t = 5,
+        r = 10,
+        b = 5,
+        l = 10
+      )
+    )
+}
+#-----------------------------------------
+# function assays    | MTS Viability Assay
+#-----------------------------------------
 # loading MTS raw data
 prepare_growth_data <- function(data, cellline, dose, cols) {
   times <- c(0, 24, 48, 72, 96, 120)
@@ -674,9 +780,9 @@ theme_MTS_growth <- function() {
       plot.margin = margin(10, 10, 2, 10)
     )
 }
-#------------------------------
-# function assays | ATM inhibition
-#-----------------------------
+#-----------------------------------------
+# function assays    | ATM inhibition
+#-----------------------------------------
 # reading, sorting and binding of raw data
 read_replicates_MTS_AZD1390 <- function(cellline) {
   lapply(
@@ -727,8 +833,8 @@ prepare_MTS_ATMi <- function(data, cellline, treatment, dose) {
 ) %>%
   filter(!is.na(Intensity))
 }
-#------------------------------
-# function assays | MTS IC50 Assay
+#-----------------------------------------
+# function assays    | MTS IC50 Assay
 #-----------------------------------------
 # binding data of inhibition data, unradiated 
 read_IC50 <- function(cellline) {
@@ -898,7 +1004,7 @@ MTS_IC50_plotting <- function(
   return(p)
 }
 #-----------------------------------------
-# Transcriptome | Differential Expression, Transcriptome
+# Transcriptome      | Differential Expression, Transcriptome
 #-----------------------------------------
 # calculation of differential expression and statistics is based on protti package
 make_DE_protti <- function(data, group1, group2) {
@@ -910,15 +1016,15 @@ make_DE_protti <- function(data, group1, group2) {
   mean2 <- rowMeans(x2, na.rm = TRUE)
   sd1 <- apply(x1, 1, sd, na.rm = TRUE)
   sd2 <- apply(x2, 1, sd, na.rm = TRUE)
-  n1 <- rowSums(is.finite(x1))
-  n2 <- rowSums(is.finite(x2))
+  n1 <- rowSums(!is.na(x1))
+  n2 <- if (deparse(substitute(data)) == "RNA_H23") 3 else 4
   res <- ttest_protti(
     mean1 = mean1,
     mean2 = mean2,
     sd1 = sd1,
     sd2 = sd2,
     n1 = n1,
-    n2 = n2,
+    n2 = 4,
     log_values = TRUE
   )
   res$adj_pVal <- p.adjust(
@@ -944,7 +1050,7 @@ make_RNA_summary <- function(data) {
   )
 }
 #-----------------------------------------
-# Proteome | Differential Expression, Proteome
+# Proteome           | Differential Expression, Proteome
 #-----------------------------------------
 # binding data for calculation
 get_wide <- function(cellline, time) {
@@ -996,76 +1102,90 @@ write_output <- function(x, filename) {
 
 # calculation of differential expression and statistics is based on protti package
 run_comparison <- function(dat, first, second) {
-  dat <- dat |>
-    dplyr::filter(condition %in% c(first, second)) |>
+  # Prepare data
+  dat <- dat %>%
+    dplyr::filter(condition %in% c(first, second)) %>%
+    dplyr::mutate(
+      ProteinKey = as.character(ProteinKey)
+    )
+  # Mean, SD and sample size
+  stats <- dat %>%
+    dplyr::group_by(ProteinKey, condition) %>%
+    dplyr::summarise(
+      mean = mean(log2_intensity, na.rm = TRUE),
+      SD = sd(log2_intensity, na.rm = TRUE),
+      n = sum(!is.na(log2_intensity)),
+      .groups = "drop"
+    ) %>%
+    tidyr::pivot_wider(
+      names_from = condition,
+      values_from = c(mean, SD, n)
+    ) %>%
+    dplyr::filter(
+      .data[[paste0("n_", first)]] >= 2,
+      .data[[paste0("n_", second)]] >= 2
+    )
+  # Statistical analysis
+  res <- ttest_protti(
+    mean1 = stats[[paste0("mean_", first)]],
+    mean2 = stats[[paste0("mean_", second)]],
+    sd1 = stats[[paste0("SD_", first)]],
+    sd2 = stats[[paste0("SD_", second)]],
+    n1 = 4,
+    n2 = 4,
+    log_values = TRUE
+  )
+  # Combine results
+  ans <- dplyr::bind_cols(
+    stats %>% dplyr::select(ProteinKey),
+    as.data.frame(res)
+  ) %>%
+    dplyr::mutate(
+      adj_pVal = p.adjust(pval, method = "BH")
+    )%>%
+    dplyr::rename(
+      log2FoldChange = diff)
+  # Annotation
+  annotation %>%
     dplyr::mutate(
       ProteinKey = as.character(ProteinKey),
-      condition = factor(condition, levels = c(second, first))
-    )
-  miss <- protti::assign_missingness(
-    data = dat,
-    sample = sample,
-    condition = condition,
-    grouping = ProteinKey,
-    intensity = log2_intensity,
-    ref_condition = second,
-    retain_columns = c("SYMBOL", "ENTREZID", "ENSEMBL")
-  )
-  ans <- protti::calculate_diff_abundance(
-    data = miss,
-    sample = sample,
-    condition = condition,
-    grouping = ProteinKey,
-    intensity_log2 = log2_intensity,
-    missingness = missingness,
-    comparison = comparison,
-    method = "moderated_t-test",
-    p_adj_method = "BH",
-    filter_NA_missingness = FALSE,
-    retain_columns = c("SYMBOL", "ENTREZID", "ENSEMBL")
-  )
-  if (!all(c('ProteinKey','diff','pval','adj_pval') %in% names(ans))) {
-    stop('unexpected Protti result: ',paste(names(ans),collapse=', '))
-  }
-  ans <- ans |> dplyr::filter(as.character(comparison)==paste0(first,'_vs_',second))
-  if(anyDuplicated(ans$ProteinKey)) stop('multiple Protti results per ProteinKey')
-  annotation |>
+    )%>%
     dplyr::select(
       ProteinKey,
       PG.Genes
-    ) |>
+    ) %>%
+    dplyr::left_join(
+      dat %>%
+        dplyr::group_by(ProteinKey) %>%
+        dplyr::summarise(
+          SYMBOL = dplyr::first(SYMBOL),
+          ENTREZID = dplyr::first(ENTREZID),
+          ENSEMBL = dplyr::first(ENSEMBL),
+          .groups = "drop"
+        ) %>%
+        dplyr::mutate(
+          dplyr::across(
+            c(SYMBOL, ENTREZID, ENSEMBL),
+            as.character
+          )
+        ),
+      by = "ProteinKey"
+    ) %>%
     dplyr::left_join(
       ans,
       by = "ProteinKey"
-    ) |>
-    dplyr::mutate(
-      dplyr::across(
-        c(SYMBOL, ENTREZID, ENSEMBL),
-        as.character
-      )
-    ) |>
-    dplyr::rename(
-      log2FoldChange = diff,
-      adj_pVal = adj_pval
-    )  |>
-  dplyr::select(
-    -comparison,
-    -missingness,
-    -CI_2.5,
-    -CI_97.5,
-    -B,
-    -n_obs,
-  )
-}
+    ) %>%
+    relocate(SYMBOL, .before = 2)}
+
 #------------------------------------------
-# Omics data | correlation between Proteome and Transcriptome data
+# Omics data         | correlation between Proteome and Transcriptome data
 #------------------------------------------
 # loading differential protein expression data and renaming data frame
 load_stat_data_p <- function(path, mode = "both") {
   mode <- match.arg(mode, c("stat", "ready", "both"))
   files <- list.files(
     path = path,
-    pattern = "^stat_p.*\\.csv$",
+    pattern = "^15_Proteome_stat_.*\\.csv$",
     full.names = TRUE
   )
   for (file in files) {
@@ -1078,7 +1198,7 @@ load_stat_data_p <- function(path, mode = "both") {
       assign(name, data, envir = .GlobalEnv)
     }
     if (mode %in% c("ready", "both")) {
-      ready_name <- sub("^stat_", "ready_", name)
+      ready_name <- sub("^15_Proteome_stat_", "ready_", name)
       assign(ready_name, data, envir = .GlobalEnv)
     }
   }
@@ -1087,28 +1207,64 @@ load_stat_data_p <- function(path, mode = "both") {
 
 # loading transcriptome differential expression data and renaming data frame
 load_stat_data_R <- function(path, mode = "both") {
+  
   mode <- match.arg(mode, c("stat", "ready", "both"))
+  
   files <- list.files(
     path = path,
-    pattern = "^stat_.*\\.csv$",
+    pattern = "^14_Transcriptome_DE_.*\\.csv$",
     full.names = TRUE
   )
+  
   for (file in files) {
+    
     name <- tools::file_path_sans_ext(basename(file))
+    
     data <- read.csv(
       file,
       check.names = FALSE
     )
+    
+    # Originaldaten laden
     if (mode %in% c("stat", "both")) {
       assign(name, data, envir = .GlobalEnv)
     }
+    
+    # Ready-Daten umbenennen
     if (mode %in% c("ready", "both")) {
-      ready_name <- sub("^stat_", "ready_", name)
-      assign(ready_name, data, envir = .GlobalEnv)
+      
+      ready_name <- dplyr::case_when(
+        grepl("HCC44_2Gy_vs_0Gy", name) ~ "ready_RHCC44_24h",
+        grepl("H23_2Gy_vs_0Gy", name) ~ "ready_RH23_24h",
+        grepl("HCC44_vs_H23_0Gy", name) ~ "ready_RCon_24h",
+        grepl("HCC44_vs_H23_2Gy", name) ~ "ready_RRad_24h",
+        TRUE ~ NA_character_
+      )
+      
+      if (!is.na(ready_name)) {
+        assign(ready_name, data, envir = .GlobalEnv)
+        message("loaded: ", ready_name)
+      }
     }
-    message("Geladen: ", name)
   }
+  
   invisible(NULL)
+}
+
+# filtering for Proteins with one entrance (p-Value based)
+filter_proteomes <- function(pattern = "^ready_p", p_col = "pval") {
+  
+  # Alle passenden Datensätze finden
+  names <- ls(pattern = pattern, envir = .GlobalEnv)
+  # Datensätze filtern
+  lapply(names, function(name) {
+    dat <- get(name, envir = .GlobalEnv)
+    dat <- dat %>%
+      dplyr::filter(!is.na(.data[[p_col]]))
+    assign(name, dat, envir = .GlobalEnv)
+    
+  })
+  invisible(names)
 }
 
 # plotting correlation between Proteome and Transcriptome with Pearson correlation model
@@ -1156,18 +1312,19 @@ plot_correlation <- function(data, title) {
   ) +
   annotate(
     "text",
-    x = 2,
-    y = 4,
+    x = -7.5,
+    y = 2.15,
     label = paste0(
       "R² = ",
       round(r2, 5)
     ),
     hjust = 0,
+    vjust = 0,
     size = 3
   ) +
   # color coding
   scale_colour_manual(
-    values = significance_colours,
+    values = corr_colours,
     breaks = c(
       "significant in proteome",
       "significant in transcriptome",
@@ -1221,30 +1378,36 @@ plot_correlation <- function(data, title) {
       legend.direction = "horizontal",
       legend.title = element_blank(),
       legend.text = element_text(
-        size = 8
+        size = 9
       ),
       legend.key.width = grid::unit(
         4,
         "mm"
       ),
       plot.title = element_text(
-        size = 11,
+        size = 13,
         face = "bold",
         hjust = 0.5
       ),
       axis.title = element_text(
-        size = 10,
+        size = 11,
         face = "bold",
         colour = "black"
       ),
       axis.text = element_text(
-        size = 9,
+        size = 10,
         colour = "black"
+      ),
+      plot.margin = margin(
+        t = 5,
+        r = 10,
+        b = 5,
+        l = 10
       )
     )
 }
 #------------------------------------------
-# Omics data | Volcano plots
+# Omics data         | Volcano plots
 #------------------------------------------
 # preparing data for plotting, volcano plot based on EnhancedVolcano
 plot_volcano <- function(
@@ -1255,7 +1418,133 @@ plot_volcano <- function(
     p_cutoff = 0.05,
     n_labels = 2,
     xlim = c(-5, 5),
-    ylim = c(0, 7.5)
+    ylim = c(0, 7.5),
+    extra_genes = NULL
+) {
+  # prepare data
+  data <- data %>%
+    mutate(
+      log2FoldChange = as.numeric(log2FoldChange),
+      pval = as.numeric(pval)
+    ) %>%
+    filter(
+      is.finite(log2FoldChange),
+      is.finite(pval),
+      pval > 0
+    )
+  # identifying significant changes 
+  sig_data <- data %>%
+    filter(
+      pval < p_cutoff,
+      abs(log2FoldChange) >= FC_cutoff
+    )
+  # identifying 10 most differential regulated hits
+  top_up <- sig_data %>%
+    filter(log2FoldChange > 0) %>%
+    slice_max(
+      order_by = log2FoldChange,
+      n = n_labels,
+      with_ties = FALSE
+    )
+  top_down <- sig_data %>%
+    filter(log2FoldChange < 0) %>%
+    slice_min(
+      order_by = log2FoldChange,
+      n = n_labels,
+      with_ties = FALSE
+    )
+  # Automatic annotation, column 2 contains names
+  selected_genes <- unique(c(
+    top_up[[2]],
+    top_down[[2]],
+    extra_genes
+  ))
+  # plotting
+  p <- EnhancedVolcano(
+    data,
+    lab = data[[2]],
+    x = "log2FoldChange",
+    y = "pval",
+    FCcutoff = FC_cutoff,
+    pCutoff = p_cutoff,
+    selectLab = selected_genes,
+    title = title,
+    subtitle = NULL,
+    caption = NULL,
+    xlab = x_title,
+    ylab = expression(-log[10] * "(p-value)"),
+    pointSize = 1.5,
+    labSize = 3,
+    # NS / just FC / just p / FC + p
+    col = c(
+      "black",
+      "black",
+      "black",
+      "#D53E4F"
+    ),
+    colAlpha = 0.6,
+    # Cutoff lines
+    cutoffLineType = "dotted",
+    cutoffLineWidth = 0.75,
+    cutoffLineCol = "black",
+    drawConnectors = TRUE,
+    widthConnectors = 0.4,
+    colConnectors = "grey40",
+    border = "full",
+    borderWidth = 0.5,
+    borderColour = "black",
+    legendPosition = "none"
+  )
+  p <- p +
+    coord_cartesian(
+      xlim = xlim,
+      ylim = ylim,
+      clip = "off"
+    ) +
+    theme_prism_xcell() +
+    theme(
+      axis.line = element_line(
+        colour = "black",
+        linewidth = 0.5
+      ),
+      axis.ticks = element_line(
+        colour = "black",
+        linewidth = 0.5
+      ),
+      axis.ticks.length =
+        grid::unit(1.5, "mm"),
+      axis.text = element_text(
+        size = 10,
+        colour = "black"
+      ),
+      axis.title = element_text(
+        size = 12,
+        face = "bold",
+        colour = "black"
+      ),
+      plot.title = element_text(
+        size = 12,
+        face = "bold",
+        hjust = 0.5
+      ),    
+      legend.position = "none",
+      plot.margin = margin(
+        5, 10, 5, 10
+      )
+    )
+  return(p)
+}
+
+plot_volcano_RNA <- function(
+    data,
+    title,
+    x_title,
+    FC_cutoff = 1,
+    p_cutoff = 0.05,
+    n_labels = 2,
+    xlim = c(-5, 5),
+    ylim = c(0, 7.5),
+    extra_genes = NULL
 ) {
   # prepare data
   data <- data %>%
@@ -1289,15 +1578,14 @@ plot_volcano <- function(
       n = n_labels,
       with_ties = FALSE
     )
-  # Automatic annotation, column 1 contains names
-  selected_genes <- c(
-    top_up[[1]],
-    top_down[[1]]
+  # Automatic annotation, column 2 contains names
+  selected_genes <- unique(
+    extra_genes
   )
   # plotting
   p <- EnhancedVolcano(
     data,
-    lab = data[[1]],
+    lab = data[[2]],
     x = "log2FoldChange",
     y = "pval",
     FCcutoff = FC_cutoff,
@@ -1312,12 +1600,12 @@ plot_volcano <- function(
     labSize = 3,
     # NS / just FC / just p / FC + p
     col = c(
-      "grey40",
-      "grey40",
-      "grey40",
+      "black",
+      "black",
+      "black",
       "#D53E4F"
     ),
-    colAlpha = 0.8,
+    colAlpha = 0.6,
     # Cutoff lines
     cutoffLineType = "dotted",
     cutoffLineWidth = 0.75,
@@ -1349,35 +1637,35 @@ plot_volcano <- function(
       axis.ticks.length =
         grid::unit(1.5, "mm"),
       axis.text = element_text(
-        size = 9,
+        size = 10,
         colour = "black"
       ),
       axis.title = element_text(
-        size = 10,
+        size = 12,
         face = "bold",
         colour = "black"
       ),
       plot.title = element_text(
-        size = 11,
+        size = 12,
         face = "bold",
         hjust = 0.5
-      ),
+      ),    
       legend.position = "none",
       plot.margin = margin(
-        10, 10, 5, 10
+        5, 10, 5, 10
       )
     )
   return(p)
 }
 #------------------------------------------
-# Transcriptome | Quality Control
+# Transcriptome      | Quality Control
 #------------------------------------------
 # loading and binding RNA data
 load_RNA <- function(cellline, time) {
   file <- file.path(
     dirs$results,
     "14_Transcriptome_DifferentialExpression",
-    paste0("RNA_", cellline, "_", time, "_intensities.csv")
+    paste0("14_Transcriptome_RNA_", cellline, "_", time, "_intensities.csv")
   )
   read.csv(file) %>%
     dplyr::filter(gene_biotype == "protein_coding")
@@ -1445,16 +1733,18 @@ calculate_cov_RNA <- function(data, cellline, treatment, time) {
     sd,
     na.rm = TRUE
   )
-  cv_value <- (sd_value / mean_value) * 100
+  cv_value <- (sd_value / mean_value)#* 100
   data.frame(
-    mean = mean_value,
+    mean =mean_value,
     SD = sd_value,
     CV = cv_value,
     Cellline = cellline,
     Treatment = treatment,
     Time = time
   ) %>%
-    filter(is.finite(CV))
+    filter(
+      is.finite(CV)
+    )
 }
 
 # calculate density for COV data
@@ -1465,7 +1755,7 @@ make_density <- function(data) {
   )
   data.frame(
     CV = dens$x,
-    Density = dens$y * nrow(data)
+    Density = dens$y #* nrow(data)
   )
 }
 
@@ -1483,7 +1773,8 @@ plot_cov_RNA <- function(data) {
           "NCI-H23 2 Gy"
         )
       )
-    )
+    )%>%
+    filter(CV > -1)
   RNA_colours <- c(
     "HCC44 ctrl"   = "#4294F7",
     "HCC44 2 Gy"   = "#EA4025",
@@ -1493,15 +1784,13 @@ plot_cov_RNA <- function(data) {
   ggplot(
     data,
     aes(
-      x = CV,
-      colour = Group,
-      fill = Group
+      x = log1p(CV),,
+      y = Density,
+      colour = Group
     )
   ) +
-    geom_density(
-      alpha = 0.15,
-      linewidth = 0.8,
-      na.rm = TRUE
+    geom_line(
+      linewidth = 0.8
     ) +
     scale_colour_manual(
       values = RNA_colours
@@ -1510,34 +1799,38 @@ plot_cov_RNA <- function(data) {
       values = RNA_colours
     ) +
     scale_x_continuous(
-      breaks = seq(0, 500, by = 100),
-      minor_breaks = seq(50, 450, by = 100),
-      expand = expansion(mult = c(0, 0))
+      breaks = seq(0, 2, by = 0.5),
+      minor_breaks = seq(0, 2, by = 0.25),
+      expand = expansion(mult = c(0, 0.01))
     ) +
     coord_cartesian(
-      xlim = c(-20, 200),
       clip = "off"
     ) +
     labs(
-      x = "Coefficient of variation [%]",
+      x = "Coefficient of variation (%)",
       y = "Density",
+      title = "Transcriptome",
       colour = NULL,
       fill = NULL
     ) +
     theme_prism_xcell() +
     theme(
       axis.title = element_text(
-        size = 7,
+        size = 12,
+        face = "bold"
+      ),
+      plot.title = element_text(
+        size = 14,
         face = "bold"
       ),
       axis.text = element_text(
-        size = 7,
+        size = 10,
         colour = "black"
       ),
       legend.position = "bottom",
       legend.direction = "horizontal",
       legend.title = element_blank(),
-      legend.text = element_text(size = 4),
+      legend.text = element_text(size = 8),
       legend.key.width = grid::unit(3, "mm"),
       legend.key.height = grid::unit(2, "mm"),
       plot.margin = margin(
@@ -1557,7 +1850,7 @@ plot_cov_RNA <- function(data) {
     )}
 
 #------------------------------------------
-# Proteome | Quality Control
+# Proteome           | Quality Control
 #------------------------------------------
 # loading proteome mean data
 load_prot_mean <- function(cellline, time) {
@@ -1574,7 +1867,7 @@ load_prot_raw <- function(cellline, time, Treatment) {
   file <- file.path(
     dirs$results,
     "15_Proteome_DifferentialExpression",
-    paste0("raw_p", cellline, "_", time, "_", Treatment, ".csv")
+    paste0("15_Proteome_raw_p", cellline, "_", time, "_", Treatment, ".csv")
   )
   read.csv(file, check.names = FALSE)
 }
@@ -1612,21 +1905,21 @@ plot_cov <- function(
   ggplot(
     plot_data,
     aes(
-      x = log_CV,
+      x = CV,#log_CV,
       y = Density,
       colour = Time,
       group = Time
     )
   ) +
     geom_line(
-      linewidth = 0.4
+      linewidth = 0.6
     ) +
     geom_vline(
-      xintercept = log10(20 + 1),
+      xintercept = 18,
       linetype = "dashed",
       linewidth = 0.4,
       colour = "grey40"
-    )+
+    ) +
     scale_colour_manual(
       values = time_colours,
       breaks = c(
@@ -1639,43 +1932,31 @@ plot_cov <- function(
       name = NULL
     ) +
     scale_x_continuous(
-      breaks = c(-2.5, 0, 2.5),
-      minor_breaks = c(-1.25, 1.25),
-      expand = expansion(mult = c(0, 0))
+      breaks = seq(0, 150, 50),
+      minor_breaks = seq(0, 150, 25),
+      expand = expansion(mult = c(0, 0.1))
     ) +
     scale_y_continuous(
-      breaks = c(
-        0,
-        150,
-        300,
-        450
-      ),
-      minor_breaks = c(
-        75,
-        225,
-        375
-      ),
-      expand = expansion(mult = c(0, 0))
+      breaks = scales::breaks_pretty(n = 5),
+      expand = expansion(mult = c(0, 0.05))
     ) +
     coord_cartesian(
-      xlim = c(-2.5, 2.5),
-      ylim = c(0, 450),
-      clip = "off"
+      xlim = c(0, 150)
     ) +
     labs(
       title = title,
-      x = expression(log[10] * "(CV + 1)"),
+      x = expression("Coefficient of Variation [%]"),
       y = "Density"
     ) +
     theme_prism_xcell() +
     theme(
       plot.title = element_text(
-        size = 9,
+        size = 14,
         face = "bold",
         hjust = 0.5
       ),
       axis.title = element_text(
-        size = 8,
+        size = 12,
         face = "bold"
       ),
       axis.line = element_line(
@@ -1687,28 +1968,21 @@ plot_cov <- function(
         linewidth = 0.25
       ),
       axis.text = element_text(
-        size = 7,
+        size = 12,
         colour = "black"
       ),
       legend.position = "bottom",
       legend.direction = "horizontal",
       legend.box.just = "left",
       legend.text = element_text(
-        size =8
+        size = 14
       ),
-      legend.key.width =
-        grid::unit(4, "mm"),
-      legend.key.height =
-        grid::unit(2.5, "mm"),
-      legend.key.spacing.x =
-        grid::unit(1, "mm"),
-      legend.spacing.x =
-        grid::unit(0, "mm"),
-      legend.box.spacing =
-        grid::unit(2, "mm"),
-      plot.margin = margin(
-        5, 10, 5, 10
-      )
+      legend.key.width = grid::unit(4, "mm"),
+      legend.key.height = grid::unit(2.5, "mm"),
+      legend.key.spacing.x = grid::unit(1, "mm"),
+      legend.spacing.x = grid::unit(0, "mm"),
+      legend.box.spacing = grid::unit(2, "mm"),
+      plot.margin = margin(5, 10, 5, 10)
     ) +
     guides(
       colour = guide_legend(
@@ -1722,12 +1996,11 @@ plot_cov <- function(
 
 # calculation Coefficient of Variation
 calculate_cov <- function(data, cellline, treatment, time) {
-  values <- data[, 4:7]
-  values <- values %>%
+  values <- data[, 5:8] %>%
     mutate(
       across(
         everything(),
-        ~ as.numeric(as.character(.x))
+        ~ 2^as.numeric(as.character(.x))
       )
     )
   mean_value <- rowMeans(
@@ -1740,9 +2013,11 @@ calculate_cov <- function(data, cellline, treatment, time) {
     sd,
     na.rm = TRUE
   )
-  cv_value <- (
-    sd_value / mean_value
-  ) * 100
+  cv_value <- ifelse(
+    mean_value > 0,
+    (sd_value / mean_value) * 100,
+    NA_real_
+  )
   cov_data <- data.frame(
     mean = mean_value,
     SD = sd_value,
@@ -1750,37 +2025,27 @@ calculate_cov <- function(data, cellline, treatment, time) {
     Cellline = cellline,
     Treatment = treatment,
     Time = time
-  )
-  cov_data <- cov_data %>%
+  ) %>%
     filter(
-      !is.na(CV),
-      is.finite(CV)
+      is.finite(CV),
+      CV >= 0
     )
   return(cov_data)
 }
-
-# calculating density of CoV
-make_density <- function(data) {
-  dens <- density(
-    data$CV,
-    na.rm = TRUE
-  )
-  data.frame(
-    CV = dens$x,
-    Density = dens$y * nrow(data)
-  )
-}
 #------------------------------------------
-# Proteome | Spline Regression
+# Proteome           | Spline Regression
 #------------------------------------------
 # binding data for spline regression
 prepare_spline_data <- function(cellline, treatment) {
   times <- c("0h", "2h", "6h", "24h", "48h")
   spline_data <- lapply(times, function(time) {
-    # load dataframe
     name <- paste0(
-      "raw_", cellline, "_", time, "_", treatment
+      "15_Proteome_raw_p", cellline, "_", time, "_", treatment
     )
+    if (!exists(name, envir = .GlobalEnv)) {
+      warning("Objekt nicht gefunden: ", name)
+      return(NULL)
+    }
     data <- get(name, envir = .GlobalEnv)
     data %>%
       dplyr::select(
@@ -1804,8 +2069,42 @@ prepare_spline_data <- function(cellline, treatment) {
     dplyr::bind_rows()
   return(spline_data)
 }
+
+load_proteome_data <- function(path) {
+  files <- list.files(
+    path = path,
+    pattern = "^15_Proteome_raw_p.*\\.csv$",
+    full.names = TRUE
+  )
+  for (file in files) {
+    name <- sub(
+      "^15_Proteome_",
+      "",
+      tools::file_path_sans_ext(basename(file))
+    )
+    data <- read.csv(
+      file,
+      check.names = FALSE
+    )
+    assign(name, data, envir = .GlobalEnv)
+    message("loaded: ", name)
+  }
+  invisible(NULL)
+}
+
+for (cellline in c("H23", "HCC44")) {
+  name <- paste0("spline_", cellline)
+  assign(
+    name,
+    dplyr::bind_rows(
+      prepare_spline_data(cellline, "c"),
+      prepare_spline_data(cellline, "2Gy")
+    )
+  )
+}
+
 #------------------------------------------
-# Proteome | Over-Representation Analysis (ORA)
+# Proteome           | Over-Representation Analysis (ORA)
 #------------------------------------------
 # binding data with annotation, log2FoldChange and pValue
 make_timeData <- function(data_0h, data_2h, data_6h, data_24h, data_48h) {
@@ -1835,8 +2134,28 @@ make_timeData_all <- function(cellline) {
   datasets <- lapply(times, function(time) {
     lapply(treatments, function(treatment) {
       get(paste0(
-        "raw_", cellline, "_", time, "_", treatment
+        "15_Proteome_raw_p", cellline, "_", time, "_", treatment, ".csv"
       ))
+    })
+  })
+  datasets <- unlist(datasets, recursive = FALSE)
+  annotation <- datasets[[1]][, 1:4]
+  intensities <- lapply(datasets, function(x) {
+    log2(x[, 5:8])
+  })
+  cbind(annotation, do.call(cbind, intensities))
+}
+
+
+make_timeData_all <- function(cellline, path = ".") {
+  times <- c("0h", "2h", "6h", "24h", "48h")
+  treatments <- c("c", "2Gy")
+  datasets <- lapply(times, function(time) {
+    lapply(treatments, function(treatment) {
+      name <- paste0(
+        "15_Proteome_raw_p", cellline, "_", time, "_", treatment, ".csv"
+      )
+      read.csv(file.path(path, name))
     })
   })
   datasets <- unlist(datasets, recursive = FALSE)
@@ -1849,64 +2168,60 @@ make_timeData_all <- function(cellline) {
 
 # loading and binding mean data
 cellline <- c("HCC44", "NCI-H23")
-make_meanData <- function(cellline, first = FALSE) {
+make_meanData <- function(cellline, path, first = TRUE) {
   times <- c("0h", "2h", "6h", "24h", "48h")
-  # import CSV Data 
   datasets <- lapply(times, function(time) {
-    name <- paste0("mean_p", cellline, "_", time)
-    data <- read.csv(paste0(name, ".csv"))
-    colnames(data)[5] <- paste0(name, "_c")
-    colnames(data)[7] <- paste0(name, "_2Gy")
-    return(data)
+    name <- paste0("15_Proteome_mean_p", cellline, "_", time)
+    data <- read.csv(file.path(path, paste0(name, ".csv")))
+    colnames(data)[c(5, 7)] <- paste0(
+      time, "_", c("c", "2Gy")
+    )
+    data
   })
-  # Annotation
-  if (first) {
-    first_data <- datasets[[1]][, c(1:4, 5, 7)]
-  } else {
-    first_data <- datasets[[1]][, c(5, 7)]
-  }
-  remaining <- lapply(datasets[-1], function(x) {
-    x[, c(5, 7)]
-  })
-  meanData <- cbind(first_data, do.call(cbind, remaining))
+  meanData <- cbind(
+    if (first) datasets[[1]][, 1:4] else NULL,
+    do.call(cbind, lapply(datasets, function(x) x[, c(5, 7)]))
+  )
   return(meanData)
 }
 
 # binding data with ENTREZID and overrepressentation analysis
 make_GO_ORA <- function(cluster_data, time_data, top_n = 10) {
-  # connect Cluster with annotation 
-  GO_data <- merge(
-    cluster_data,
-    time_data[, 1:2],
-    by = "ProteinKey"
-  )
-  # transform SYMBOL in ENTREZIDs
-  entrez_ids <- bitr(
-    GO_data[, 2],
+  GO_data <- cluster_data %>%
+    dplyr::left_join(
+      time_data %>% dplyr::select(ProteinKey, SYMBOL),
+      by = "ProteinKey"
+    )
+  entrez_ids <- clusterProfiler::bitr(
+    unique(na.omit(GO_data$SYMBOL)),
     fromType = "SYMBOL",
     toType = "ENTREZID",
     OrgDb = org.Hs.eg.db
   )
-  # GO-Enrichment
-  res_GO <- enrichGO(
-    gene = entrez_ids$ENTREZID,
+  res_GO <- clusterProfiler::enrichGO(
+    gene = unique(as.character(entrez_ids$ENTREZID)),
     OrgDb = org.Hs.eg.db,
+    keyType = "ENTREZID",
     ont = "BP",
     pAdjustMethod = "BH",
     readable = TRUE
   )
-  # cleansing results
+  if (is.null(res_GO)) {
+    warning("Keine Gene konnten GO-BP-Terms zugeordnet werden.")
+    return(NULL)
+  }
   go_data <- as.data.frame(res_GO) %>%
-    distinct(geneID, .keep_all = TRUE) %>%
-    arrange(desc(Count)) %>%
-    slice_head(n = top_n) %>%
-    mutate(
+    dplyr::arrange(p.adjust)
+  if (!is.null(top_n)) {
+    go_data <- go_data %>%
+      dplyr::slice_head(n = top_n)
+  }
+  go_data <- go_data %>%
+    dplyr::mutate(
       p.adjust_log = -log10(p.adjust),
-      gene_ratio_numeric = as.numeric(
-        sub("/.*", "", GeneRatio)
-      ) / as.numeric(
-        sub(".*/", "", GeneRatio)
-      ),
+      gene_ratio_numeric =
+        as.numeric(sub("/.*", "", GeneRatio)) /
+        as.numeric(sub(".*/", "", GeneRatio)),
       GO_position = rev(seq_len(n()))
     )
   return(list(
@@ -1917,53 +2232,7 @@ make_GO_ORA <- function(cluster_data, time_data, top_n = 10) {
   ))
 }
 #------------------------------------------
-# Proteome | Analysis of Cell cycle proteins
-#------------------------------------------
-# binding proteins for time course analysis
-make_protein_timecourse <- function(data, gene) {
-  # select proteins
-  Symbol <- data[data[[4]] == gene, ]
-  if (nrow(Symbol) != 1) {
-    stop("Gene was not identified as unique")
-  }
-  H23   <- as.numeric(unlist(Symbol[1, seq(6, 14, 2)]))
-  HCC44 <- as.numeric(unlist(Symbol[1, seq(16, 24, 2)]))
-  data.frame(
-    Time = rep(c(0, 2, 6, 24, 48), 2),
-    Intensity = c(
-      HCC44 / HCC44[1],
-      H23 / H23[1]
-    ),
-    Cellline = factor(
-      rep(c("HCC44 2 Gy", "NCI-H23 2 Gy"), each = 5),
-      levels = c("HCC44 2 Gy", "NCI-H23 2 Gy")
-    )
-  )
-}
-
-# preparing data
-make_cluster_data <- function(data, cols, cellline) {
-  data %>%
-    transmute(
-      Protein = .[[4]],
-      across(all_of(cols))
-    ) %>%
-    pivot_longer(
-      cols = -Protein,
-      names_to = "Sample",
-      values_to = "Intensity"
-    ) %>%
-    group_by(Protein) %>%
-    mutate(
-      Time = rep(time_points, length.out = n()),
-      Intensity = as.numeric(Intensity),
-      Intensity = Intensity / Intensity[Time == 0],
-      Cellline = cellline
-    ) %>%
-    ungroup()
-}
-#------------------------------------------
-# Proteome | Protein-Protein Interaction networks
+# Proteome           | Protein-Protein Interaction networks
 #------------------------------------------
 # bind data for PIP analysis and PIP analysis
 make_temporal_PPI <- function(
@@ -2298,6 +2567,50 @@ plot_temporal_PPI <- function(
       legend.position = "bottom",
       legend.text = ggplot2::element_text(size = 8),
       legend.title = ggplot2::element_text(size = 9)
+    )
+}
+#------------------------------------------
+# Proteome           | Analysis of Cell cycle proteins
+#------------------------------------------
+# binding proteins for time course analysis
+make_protein_timecourse <- function(data, gene) {
+  # select proteins
+  Symbol <- data[data[[4]] == gene, ]
+  if (nrow(Symbol) != 1) {
+    stop("Gene was not identified as unique")
+  }
+  H23   <- as.numeric(unlist(Symbol[1, seq(6, 14, 2)]))
+  HCC44 <- as.numeric(unlist(Symbol[1, seq(16, 24, 2)]))
+  data.frame(
+    Time = rep(c(0, 2, 6, 24, 48), 2),
+    Intensity = c(
+      HCC44 / HCC44[1],
+      H23 / H23[1]
+    ),
+    Cellline = factor(
+      rep(c("HCC44 2 Gy", "NCI-H23 2 Gy"), each = 5),
+      levels = c("HCC44 2 Gy", "NCI-H23 2 Gy")
+    )
+  )
+}
+
+# preparing data
+make_cluster_data <- function(data) {
+  data %>%
+    tidyr::pivot_longer(
+      cols = -c(ProteinKey, ENSEMBL, ENTREZID, SYMBOL),
+      names_to = c("Cellline", "Time", "Treatment"),
+      names_pattern = "(.+)_(\\d+)_(.+)",
+      values_to = "Intensity"
+    ) %>%
+    dplyr::mutate(
+      Time = as.numeric(Time),
+      Treatment = dplyr::recode(Treatment, "c" = "Control"),
+      Treatment = dplyr::recode(Treatment, "2Gy" = "2 Gy"),
+    ) %>%
+    dplyr::select(
+      ProteinKey, SYMBOL, ENSEMBL, ENTREZID,
+      Cellline, Treatment, Time, Intensity
     )
 }
 #-----------------------------------------------
