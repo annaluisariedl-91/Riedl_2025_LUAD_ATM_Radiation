@@ -123,10 +123,10 @@ dir.create(
 setwd(file.path(dirs$results, "14_Transcriptome_DifferentialExpression"))
 
 DE_results <- list(
-  "DE_HCC44_2Gy_vs_0Gy.csv" = ready_RHCC44_24h,
-  "DE_H23_2Gy_vs_0Gy.csv" = ready_RH23_24h,
-  "DE_HCC44_vs_H23_2Gy.csv" = ready_RRAD_24h,
-  "DE_HCC44_vs_H23_0Gy.csv" = ready_RCon_24h
+  "14_Transcriptome_DE_HCC44_2Gy_vs_0Gy.csv" = ready_RHCC44_24h,
+  "14_Transcriptome_DE_H23_2Gy_vs_0Gy.csv" = ready_RH23_24h,
+  "14_Transcriptome_DE_HCC44_vs_H23_2Gy.csv" = ready_RRAD_24h,
+  "14_Transcriptome_DE_HCC44_vs_H23_0Gy.csv" = ready_RCon_24h
 )
 
 purrr::iwalk(
@@ -142,14 +142,14 @@ purrr::iwalk(
 RNA_HCC44_summary <- make_RNA_summary(RNA_HCC44)
 write.csv(
   RNA_HCC44_summary,
-  file.path(dirs$results, "14_Transcriptome_DifferentialExpression", "RNA_HCC44_24h_intensities.csv"),
+  file.path(dirs$results, "14_Transcriptome_DifferentialExpression", "14_Transcriptome_RNA_HCC44_24h_intensities.csv"),
   row.names = FALSE
 )
 
 RNA_H23_summary <- make_RNA_summary(RNA_H23)
 write.csv(
   RNA_H23_summary,
-  file.path(dirs$results, "14_Transcriptome_DifferentialExpression", "RNA_H23_24h_intensities.csv"),
+  file.path(dirs$results, "14_Transcriptome_DifferentialExpression", "14_Transcriptome_RNA_H23_24h_intensities.csv"),
   row.names = FALSE
 )
 #------------------------------------------
