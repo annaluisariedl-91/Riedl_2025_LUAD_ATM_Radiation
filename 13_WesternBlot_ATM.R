@@ -32,23 +32,24 @@ WB_intens_ATM_summary <- WB_intens_ATM_long %>%
     .groups = "drop"
   )
 #-----------------------------------------
-# import SF2Gy and merging to density data
+# import SF4Gy and merging to density data
 #-----------------------------------------
-WB_SF_all_2Gy <- stat_data_CFA_8Gy %>%
-  filter(Dose == 2, !is.na(SF), !is.nan(SF)) %>%
-  group_by(Cellline) %>%
-  summarise(
-    SD_SF = sd(SF),
-    SEM_SF = SD_SF / sqrt(n()),
-    n = n(),
-    SF = mean(SF),
-    .groups = "drop"
+setwd(file.path(dirs$results, "04_ColonyFormingAssay_8Gy"))
+
+CFA_8Gy_plot_data <- read.csv2("04_CFA_5Celllines_8Gy_means.csv",sep=",")
+
+WB_SF_all_4Gy<-CFA_8Gy_plot_data%>%
+  filter(
+    Dose==4
+  )%>%
+  mutate(
+    SF_mean=ifelse(is.na(SF_mean),"",SF_mean)
   )
 
 WB_ATM_SF_Cor <- data.frame(
-  Cellline = celllines,
-  SF = as.numeric(WB_SF_all_2Gy$SF),
-  SEM_SF = as.numeric(WB_SF_all_2Gy$SEM_SF)
+  Cellline = WB_SF_all_4Gy$Cellline,
+  SF = as.numeric(WB_SF_all_4Gy$SF_mean),
+  SEM_SF = as.numeric(WB_SF_all_4Gy$SF_SEM)
 ) %>%
   left_join(
     WB_intens_ATM_summary,
@@ -84,7 +85,7 @@ WB_ATM_vs_SF_pairs <- pairs(
   adjust = "tukey"
 )
 
-ATM_vs_SF_post_hoc_all<-summary(WB_ATM_vs_SF_pairs)
+WB_ATM_vs_SF_post_hoc_all<-summary(WB_ATM_vs_SF_pairs)
 #-----------------------------------------
 # statistical analysis vs NCI-H23
 #-----------------------------------------
@@ -95,7 +96,7 @@ WB_ATM_vs_SF_Dunnett <- contrast(
   adjust = "dunnett"
 )
 #-----------------------------------------
-# correlation ATM ~ SF_2Gy
+# correlation ATM ~ SF_4Gy
 #-----------------------------------------
 WB_ATM_vs_SF_spearman <- cor.test(
   WB_ATM_SF_Cor$SF,
@@ -154,7 +155,7 @@ WB_ATM_significance <- as.data.frame(
 #-----------------------------------------
 # bar plot ATM intensity ~ Cell line
 #----------------------------------------
-p_WB_ATM_vs_SF_intensity <- ggplot(
+WB_p_ATM_vs_SF_intensity <- ggplot(
   WB_intens_ATM_summary,
   aes(
     x = Cellline,
@@ -225,7 +226,7 @@ p_WB_ATM_vs_SF_intensity <- ggplot(
     legend.position = "none"
   )
 
-p_WB_ATM_vs_SF_intensity <- p_WB_ATM_vs_SF_intensity +
+WB_p_ATM_vs_SF_intensity <- WB_p_ATM_vs_SF_intensity +
   geom_text(
     data = WB_ATM_significance,
     aes(
@@ -237,9 +238,9 @@ p_WB_ATM_vs_SF_intensity <- p_WB_ATM_vs_SF_intensity +
     size = 3.5
   )
 #----------------------------------------
-# correlation plot ATM content ~ SF_2Gy
+# correlation plot ATM content ~ SF_4Gy
 #----------------------------------------
-p_WB_ATM_vs_SF_correlation <- ggplot(
+WB_p_ATM_vs_SF_correlation <- ggplot(
   WB_ATM_SF_Cor,
   aes(
     x = SF,
@@ -288,43 +289,43 @@ p_WB_ATM_vs_SF_correlation <- ggplot(
   ) +
   annotate(
     "text",
-    x = 0.1,
-    y = 1.8,
+    x = 0.01,
+    y = 1.7,
     label = paste0(
       "\u03c1 = ", sprintf("%.2f", WB_ATM_vs_SF_stats$rho),
       "\np = ", format.pval(WB_ATM_vs_SF_stats$p, digits = 2)
     ),
     hjust = 0,
     vjust = 1,
-    size = 2.5
+    size = 3.5
   ) +
   scale_fill_manual(
     values = WB_ATM_colours
   ) +
   scale_x_continuous(
-    breaks = c(0, 0.5, 1),
-    minor_breaks = c(0.25, 0.75),
-    limits = c(0, 1),
-    expand = expansion(mult = c(0, 0))
+    breaks = c(0, 0.1,0.2,0.3),
+    minor_breaks = c(seq(0,0.3,0.05)),
+    limits = c(0, 0.30),
+    expand = expansion(mult = c(0, 0.05))
   ) +
   scale_y_continuous(
     breaks = c(0, 0.5, 1, 1.5),
     minor_breaks = seq(0.25, 1.75, 0.5),
     limits = c(0, 1.8),
-    expand = expansion(mult = c(0, 0))
+    expand = expansion(mult = c(0, 0.05))
   ) +
   labs(
-    x = "Surviving fraction (2 Gy)",
+    x = "Surviving fraction (4 Gy)",
     y = "Normalized ATM intensity (a.u.)"
   ) +
   theme_prism_xcell() +
   theme(
     axis.title = element_text(
-      size = 8,
+      size = 12,
       face = "bold"
     ),
     axis.text = element_text(
-      size = 7,
+      size = 10,
       colour = "black"
     ),
     legend.position = "none"
@@ -341,8 +342,8 @@ setwd(file.path(dirs$results, "13_WesternBlot_ATM"))
 
 #1. saving graph barplot intensity
 ggsave(
-  filename = "WB_ATM_intensity.jpeg",
-  plot = p_WB_ATM_vs_SF_intensity,
+  filename = "13_WesternBlot_ATM_intensity.jpeg",
+  plot = WB_p_ATM_vs_SF_intensity,
   width = 21*2/3,
   height = 7,
   units = "cm",
@@ -350,8 +351,8 @@ ggsave(
 )
 
 ggsave(
-  filename = "WB_ATM_intensity.pdf",
-  plot = p_WB_ATM_vs_SF_intensity,
+  filename = "13_WesternBlot_ATM_intensity.pdf",
+  plot = WB_p_ATM_vs_SF_intensity,
   width = 21*2/3,
   height = 7,
   units = "cm"
@@ -359,17 +360,17 @@ ggsave(
 
 #2. saving graphs correlation
 ggsave(
-  filename = "WB_ATM_correlation.jpeg",
-  plot = p_WB_ATM_vs_SF_correlation,
-  width = 21*2/3,
+  filename = "13_WesternBlot_ATM_4Gy_correlation.jpeg",
+  plot = WB_p_ATM_vs_SF_correlation,
+  width = 21*1/3,
   height = 7,
   units = "cm",
   dpi = 600
 )
 
 ggsave(
-  filename = "WB_ATM_correlation.pdf",
-  plot = p_WB_ATM_vs_SF_correlation,
+  filename = "13_WesternBlot_ATM_4Gy_correlation.pdf",
+  plot = WB_p_ATM_vs_SF_correlation,
   width = 21*1/3,
   height = 7,
   units = "cm",
@@ -377,17 +378,17 @@ ggsave(
 ) 
 
 #3. saving graph combined intensity and correlation plot
-p_WB_ATM_vs_SF_final <- (
-  p_WB_ATM_vs_SF_correlation +
-    p_WB_ATM_vs_SF_intensity
+WB_p_ATM_vs_SF_final <- (
+  WB_p_ATM_vs_SF_correlation +
+    WB_p_ATM_vs_SF_intensity
 ) +
   plot_layout(
     widths = c(2, 1)
   )
 
 ggsave(
-  filename = "WB_ATM_final.jpeg",
-  plot = p_WB_ATM_vs_SF_final,
+  filename = "13_WesternBlot_ATM_4Gy_intensity_final.jpeg",
+  plot = WB_p_ATM_vs_SF_final,
   width = 21*2/3,
   height = 7,
   units = "cm",
@@ -395,8 +396,8 @@ ggsave(
 )
 
 ggsave(
-  filename = "WB_ATM_final.pdf",
-  plot = p_WB_ATM_vs_SF_final,
+  filename = "13_WesternBlot_ATM_4Gy_intensity_final.pdf",
+  plot = WB_p_ATM_vs_SF_final,
   width = 21*2/3,
   height = 7,
   units = "cm"
@@ -405,27 +406,27 @@ ggsave(
 #4. saving aov
 write.csv(
   WB_ATM_vs_SF_anova_all,
-  file = file.path(dirs$results, "13_WesternBlot_ATM", "WB_ATM_vs_SF_anova_all.csv"),
+  file = file.path(dirs$results, "13_WesternBlot_ATM", "13_WesternBlot_ATM_vs_SF_anova_all.csv"),
   row.names = FALSE)
   
 #5. saving Duunnet pairs with NCI-H23 as reference
 write.csv(
   WB_ATM_vs_SF_Dunnett,
-  file = file.path(dirs$results, "13_WesternBlot_ATM", "WB_ATM_vs_SF_Dunnett.csv"),
+  file = file.path(dirs$results, "13_WesternBlot_ATM", "13_WesternBlot_ATM_vs_SF_Dunnett.csv"),
   row.names = FALSE
 )
 
 #5. saving post hoc analysis
 write.csv(
-  ATM_vs_SF_post_hoc_all,
-  file = file.path(dirs$results, "13_WesternBlot_ATM", "WB_ATM_vs_SF_post_hoc_all.csv"),
+  WB_ATM_vs_SF_post_hoc_all,
+  file = file.path(dirs$results, "13_WesternBlot_ATM", "13_WesternBlot_ATM_vs_SF_post_hoc_all.csv"),
   row.names = FALSE
 )
 
 #5. saving post hoc analysis
 write.csv(
   WB_intens_ATM_summary,
-  file = file.path(dirs$results, "13_WesternBlot_ATM", "WB_ATM_intensity_summary.csv"),
+  file = file.path(dirs$results, "13_WesternBlot_ATM", "13_WesternBlot_ATM_intensity_summary.csv"),
   row.names = FALSE
 )
 #-----------------------------------------------
