@@ -13,25 +13,25 @@ load_stat_data_p(
 #-------------------------------------------
 # NCI-H23 - binding proteome and transcriptome data
 #-------------------------------------------
-compare_H23 <- merge(
-  x = ready_pH23_24h[, c(2, 6, 9)] %>%
+corr_H23 <- merge(
+  x = ready_pH23_24h[, c(1,2, 3, 6,9)] %>%#[, c(2, 6, 9)] %>%
     dplyr::rename(
-      Proteome = log2FoldChange,
+      Proteome = log2FoldChange,#
       p_proteome = pval
     ),
-  y = ready_RH23_24h[, c(1, 3, 6)] %>%
+  y = ready_RH23_24h[, c(1, 3, 6)] %>%#[, c(1, 3, 6)] %>%
     dplyr::rename(
       Transcriptome = log2FoldChange,
       p_transcriptome = pval
     ),
-  by.x = "PG.Genes",
+  by.x = "SYMBOL",
   by.y = "GeneSymbol"
 ) %>%
   # filtering for genes with symbols and values
   filter(
     complete.cases(.),
     PG.Genes != "",
-    !duplicated(Proteome)
+    !duplicated(ProteinKey)
   ) %>%
 # sort for variance
   mutate(
@@ -59,8 +59,8 @@ compare_H23 <- merge(
 #-------------------------------------------
 # HCC44 - binding proteome and transcriptome data
 #-------------------------------------------
-compare_HCC44 <- merge(
-  x = ready_pHCC44_24h[, c(2, 6, 9)] %>%
+corr_HCC44 <- merge(
+  x = ready_pHCC44_24h[,c(2, 6, 9)] %>%
     dplyr::rename(
       Proteome = log2FoldChange,
       p_proteome = pval
@@ -70,13 +70,13 @@ compare_HCC44 <- merge(
       Transcriptome = log2FoldChange,
       p_transcriptome = pval
     ),
-  by.x = "PG.Genes",
+  by.x = "SYMBOL",
   by.y = "GeneSymbol"
 ) %>%
   # filtering for genes with symbols and values
   filter(
     complete.cases(.),
-    PG.Genes != "",
+    SYMBOL != "",
     !duplicated(Proteome)
   ) %>%
 # sort for variance
@@ -105,43 +105,44 @@ compare_HCC44 <- merge(
 #-------------------------------------------
 # Correlation
 #-------------------------------------------
-corr_data_H23 <- compare_H23 |>
+corr_data_H23 <- corr_H23 |>
   dplyr::filter(
     is.finite(Transcriptome),
     is.finite(Proteome)
   )
 
-n_pairs <- nrow(corr_data_H23)
+corr_n_pairs_H23 <- nrow(corr_data_H23)
 
-r <- if (
-  n_pairs >= 3 &&
-  sd(corr_data_H23$Transcriptome) > 0 &&
-  sd(corr_data_H23$Proteome) > 0
+corr_H23_r <- if (
+  corr_n_pairs_H23 >= 3 &&
+  sd(corr_data_H23$Transcriptome, na.rm = TRUE) > 0 &&
+  sd(corr_data_H23$Proteome, na.rm = TRUE) > 0
 ) {
   cor(
     corr_data_H23$Transcriptome,
     corr_data_H23$Proteome,
-    method = "pearson"
+    method = "pearson",
+    use = "complete.obs"
   )
 } else {
   NA_real_
 }
 
-cor_label_H23 <- paste0(
-  "Pearson r = ", if (is.na(r)) "NA" else sprintf("%.2f", r),
-  "\nn = ", n_pairs
+corr_label_H23 <- paste0(
+  "Pearson r = ", if (is.na(corr_H23_r)) "NA" else sprintf("%.2f", corr_H23_r),
+  "\nn = ", corr_n_pairs_H23
 )
 
-corr_data_HCC44 <- compare_HCC44 |>
+corr_data_HCC44 <- corr_HCC44 |>
   dplyr::filter(
     is.finite(Transcriptome),
     is.finite(Proteome)
   )
 
-n_pairs <- nrow(corr_data_HCC44)
+corr_n_pairs_HCC44 <- nrow(corr_data_HCC44)
 
-r <- if (
-  n_pairs >= 3 &&
+corr_HCC44_r <- if (
+  corr_n_pairs_HCC44 >= 3 &&
   sd(corr_data_HCC44$Transcriptome) > 0 &&
   sd(corr_data_HCC44$Proteome) > 0
 ) {
@@ -154,61 +155,60 @@ r <- if (
   NA_real_
 }
 
-cor_label_HCC44 <- paste0(
-  "Pearson r = ", if (is.na(r)) "NA" else sprintf("%.2f", r),
-  "\nn = ", n_pairs
+corr_label_HCC44 <- paste0(
+  "Pearson r = ", if (is.na(corr_HCC44_r)) "NA" else sprintf("%.2f", corr_HCC44_r),
+  "\nn = ", corr_n_pairs_HCC44
 )
 #-------------------------------------------
 # preparing for plotting
 #-------------------------------------------
-significance_colours <- c(
+corr_colours <- c(
   "not significant" = "black",
   "significant in proteome" = "#5F8F29",
   "significant in transcriptome" = "#4294F7",
   "significant in both" ="#E84125"
 )
-
 #-------------------------------------------
 # Plotting correlation
 #-------------------------------------------
-p_cor_proteome_transcriptome_HCC44 <- plot_correlation(
-  data = compare_HCC44,
+corr_p_proteome_transcriptome_HCC44 <- plot_correlation(
+  data = corr_HCC44,
   title = "Comparison Proteome vs Transcriptome\nHCC44"
 )
 
-p_cor_proteome_transcriptome_HCC44 <- p_cor_proteome_transcriptome_HCC44 +
+corr_p_proteome_transcriptome_HCC44 <- corr_p_proteome_transcriptome_HCC44 +
   annotate(
     "text",
-    x = -5,
-    y = Inf,
-    label = cor_label_HCC44,
-    hjust = 0.5,
-    vjust = 1.2,
+    x = -7.5,
+    y = 0.5,
+    label = corr_label_HCC44,
+    hjust = 0,
+    vjust = 0,
     size = 3
   )
 
-p_cor_proteome_transcriptome_H23 <- plot_correlation(
+corr_p_proteome_transcriptome_H23 <- plot_correlation(
   data = corr_data_H23,
   title = "Comparison Proteome vs Transcriptome\nNCI-H23"
 )
 
-p_cor_proteome_transcriptome_H23 <- p_cor_proteome_transcriptome_H23 +
+corr_p_proteome_transcriptome_H23 <- corr_p_proteome_transcriptome_H23 +
   annotate(
     "text",
-    x = -5,
-    y = Inf,
-    label = cor_label_H23,
-    hjust = 0.5,
-    vjust = 1.2,
+    x = -7.5,
+    y = 0.5,
+    label = corr_label_H23,
+    hjust = 0,
+    vjust = 0,
     size = 3
   )  
 
 #-------------------------------------------
 # Combining plots
 #-------------------------------------------
-Correlation_Proteom_Transcriptome <-
-  p_cor_proteome_transcriptome_HCC44 /
-  p_cor_proteome_transcriptome_H23 +
+corr_p_proteome_transcriptome_final <-
+  corr_p_proteome_transcriptome_HCC44 /
+  corr_p_proteome_transcriptome_H23 +
   plot_layout(
     ncol = 2,
     guides = "collect"
@@ -228,8 +228,8 @@ setwd(file.path(dirs$results, "16_Proteom_Transcriptome_Correlation"))
 
 #1. saving combined results
 ggsave(
-  filename = "Correlation_Proteom_Transcriptome.jpeg",
-  plot = Correlation_Proteom_Transcriptome,
+  filename = "16_Proteom_Transcriptome_Correlation_plot.jpeg",
+  plot = corr_p_proteome_transcriptome_final,
   width = 21*3/3,
   height = 7,
   units = "cm",
@@ -237,18 +237,18 @@ ggsave(
 )
 
 ggsave(
-  filename = "Correlation_Proteom_Transcriptome.pdf",
-  plot = Correlation_Proteom_Transcriptome,
+  filename = "16_Proteom_Transcriptome_Correlation_plot.pdf",
+  plot = corr_p_proteome_transcriptome_final,
   width = 21*3/3,
   height = 7,
   units = "cm",
   dpi = 300
 )
 
-#1. saving HCC44 results
+#2. saving HCC44 results
 ggsave(
-  filename = "Correlation_Proteom_Transcriptome_HCC44.jpeg",
-  plot = p_cor_proteome_transcriptome_HCC44,
+  filename = "16_Proteom_Transcriptome_Correlation_plot_HCC44.jpeg",
+  plot = corr_p_proteome_transcriptome_HCC44,
   width = 21*2/3,
   height = 7,
   units = "cm",
@@ -256,31 +256,46 @@ ggsave(
 )
 
 ggsave(
-  filename = "Correlation_Proteom_Transcriptome_HCC44.pdf",
-  plot = p_cor_proteome_transcriptome_HCC44,
+  filename = "16_Proteom_Transcriptome_Correlation_plot_HCC44.pdf",
+  plot = corr_p_proteome_transcriptome_HCC44,
   width = 21*2/3,
   height = 7,
   units = "cm",
   dpi = 300
 )
 
-#1. saving NCI-H23 results
+#3. saving NCI-H23 results
 ggsave(
-  filename = "Correlation_Proteom_Transcriptome_NCI-H23.jpeg",
-  plot = p_cor_proteome_transcriptome_HCC44,
-  width = 21*1/3,
+  filename = "16_Proteom_Transcriptome_Correlation_plot_NCI-H23.jpeg",
+  plot = corr_p_proteome_transcriptome_H23,
+  width = 21*2/3,
   height = 7,
   units = "cm",
   dpi = 300
 )
 
 ggsave(
-  filename = "Correlation_Proteom_Transcriptome_NCI-H23.pdf",
-  plot = p_cor_proteome_transcriptome_HCC44,
-  width = 21*1/3,
+  filename = "16_Proteom_Transcriptome_Correlation_plot_NCI-H23.pdf",
+  plot = corr_p_proteome_transcriptome_H23,
+  width = 21*2/3,
   height = 7,
   units = "cm",
   dpi = 300
+)
+
+#4. saving NCI-H23 results table
+write.csv(
+  corr_H23,
+  file = file.path(dirs$results, "16_Proteom_Transcriptome_Correlation", "16_Proteom_Transcriptome_Correlation_plot_NCI_H23_results.csv"),
+  row.names = FALSE
+)
+
+
+#5. saving HCC44 results table
+write.csv(
+  corr_HCC44,
+  file = file.path(dirs$results, "16_Proteom_Transcriptome_Correlation", "16_Proteom_Transcriptome_Correlation_plot_HCC44_results.csv"),
+  row.names = FALSE
 )
 #-----------------------------------------------
 setwd(dirs$code)
