@@ -17,9 +17,9 @@ setwd(file.path(dirs$results, "18_Transcriptome_Volcano_top10"))
 #--------------------------------------------
 # 24h | Volcano HCC44 - Plotting
 #--------------------------------------------
-p_volcano_RNA_HCC44 <- plot_volcano(
+RNA_p_volcano_HCC44 <- plot_volcano_RNA(
   data = ready_RHCC44_24h,
-  title = "Transcriptome, HCC44, 24 h",
+  title = "Transcriptome \nHCC44, 24 h",
   x_title = expression(
     log[2] * "(2 Gy / Control)"
   ),
@@ -28,21 +28,21 @@ p_volcano_RNA_HCC44 <- plot_volcano(
   n_labels = 2,
   xlim = c(-5, 5),
   ylim = c(0, 7.5)
-)
+  )
 #--------------------------------------------
 # 24h | Volcano HCC44 - Saving
 #--------------------------------------------
 ggsave(
-  filename = "Transcriptome_Volcano_HCC44.pdf",
-  plot = p_volcano_RNA_HCC44,
+  filename = "18_Transcriptome_Volcano_HCC44.pdf",
+  plot = RNA_p_volcano_HCC44,
   width = 21*1/3,
   height = 7,
   units = "cm"
 )
 
 ggsave(
-  filename = "Transcriptome_Volcano_HCC44.jpg",
-  plot = p_volcano_RNA_HCC44,
+  filename = "18_Transcriptome_Volcano_HCC44.jpg",
+  plot = RNA_p_volcano_HCC44,
   width = 21*1/3,
   height = 7,
   units = "cm"
@@ -51,7 +51,7 @@ ggsave(
 #--------------------------------------------
 # 24h | Top 10 HCC44 - filtering
 #--------------------------------------------
-top10_HCC44_down <- ready_RHCC44_24h %>%
+RNA_top10_HCC44_down <- ready_RHCC44_24h %>%
   filter(
     pval < 0.05,
     log2FoldChange < -1
@@ -59,7 +59,7 @@ top10_HCC44_down <- ready_RHCC44_24h %>%
   arrange(log2FoldChange) %>%
   slice_head(n = 10)
 
-top10_HCC44_up <- ready_RHCC44_24h %>%
+RNA_top10_HCC44_up <- ready_RHCC44_24h %>%
   filter(
     pval < 0.05,
     log2FoldChange > 1
@@ -67,9 +67,9 @@ top10_HCC44_up <- ready_RHCC44_24h %>%
   arrange(desc(log2FoldChange)) %>%
   slice_head(n = 10)
 
-top10_HCC44 <- bind_rows(
-  top10_HCC44_down,
-  top10_HCC44_up
+RNA_top10_HCC44 <- bind_rows(
+  RNA_top10_HCC44_down,
+  RNA_top10_HCC44_up
 ) %>%
   mutate(
     neg_log10_p = -log10(pval),
@@ -80,7 +80,7 @@ top10_HCC44 <- bind_rows(
     )
   )
 
-top10_HCC44 <- top10_HCC44 %>%
+RNA_top10_HCC44 <- RNA_top10_HCC44 %>%
   arrange(log2FoldChange) %>%
   mutate(
     Gene = factor(
@@ -91,8 +91,8 @@ top10_HCC44 <- top10_HCC44 %>%
 #--------------------------------------------
 # 24h | Top 10 HCC44 - plotting
 #--------------------------------------------
-p_RNA_top10_HCC44 <- ggplot(
-  top10_HCC44,
+RNA_p_top10_HCC44 <- ggplot(
+  RNA_top10_HCC44,
   aes(
     x = log2FoldChange,
     y = Gene
@@ -178,16 +178,16 @@ p_RNA_top10_HCC44 <- ggplot(
 # 24h | Top 10 HCC44 - saving results
 #--------------------------------------------
 ggsave(
-  filename = "Transcriptome_Top10_HCC44.pdf",
-  plot = p_RNA_top10_HCC44,
+  filename = "18_Transcriptome_Top10_HCC44.pdf",
+  plot = RNA_p_top10_HCC44,
   width = 21*1/3,
   height = 7,
   units = "cm"
 )
 
 ggsave(
-  filename = "Transcriptome_Top10_HCC44.jpg",
-  plot = p_RNA_top10_HCC44,
+  filename = "18_Transcriptome_Top10_HCC44.jpg",
+  plot = RNA_p_top10_HCC44,
   width = 21*1/3,
   height = 7,
   units = "cm"
@@ -195,9 +195,9 @@ ggsave(
 #--------------------------------------------
 # 24h | Volcano H23 - Plotting
 #--------------------------------------------
-p_volcano_RNA_H23 <- plot_volcano(
+RNA_p_volcano_H23 <- plot_volcano_RNA(
   data = ready_RH23_24h,
-  title = "Transcriptome, NCI-H23, 24 h",
+  title = "Transcriptome \nNCI-H23, 24 h",
   x_title = expression(
     log[2] * "(2 Gy / Control)"
   ),
@@ -211,16 +211,16 @@ p_volcano_RNA_H23 <- plot_volcano(
 # 24h | Volcano H23 - Saving
 #--------------------------------------------
 ggsave(
-  filename = "Transcriptome_Volcano_H23.pdf",
-  plot = p_volcano_RNA_H23,
+  filename = "18_Transcriptome_Volcano_H23.pdf",
+  plot = RNA_p_volcano_H23,
   width = 21*1/3,
   height = 7,
   units = "cm"
 )
 
 ggsave(
-  filename = "Transcriptome_Volcano_H23.jpg",
-  plot = p_volcano_RNA_H23,
+  filename = "18_Transcriptome_Volcano_H23.jpg",
+  plot = RNA_p_volcano_H23,
   width = 21*1/3,
   height = 7,
   units = "cm"
@@ -229,7 +229,7 @@ ggsave(
 #--------------------------------------------
 # 24h | Top 10 H23 - filtering
 #--------------------------------------------
-top10_H23_down <- ready_RH23_24h %>%
+RNA_top10_H23_down <- ready_RH23_24h %>%
   filter(
     pval < 0.05,
     log2FoldChange < -1
@@ -237,7 +237,7 @@ top10_H23_down <- ready_RH23_24h %>%
   arrange(log2FoldChange) %>%
   slice_head(n = 10)
 
-top10_H23_up <- ready_RH23_24h %>%
+RNA_top10_H23_up <- ready_RH23_24h %>%
   filter(
     pval < 0.05,
     log2FoldChange > 1
@@ -245,7 +245,7 @@ top10_H23_up <- ready_RH23_24h %>%
   arrange(desc(log2FoldChange)) %>%
   slice_head(n = 10)
 
-top10_H23 <- bind_rows(
+RNA_top10_H23 <- bind_rows(
   top10_H23_down,
   top10_H23_up
 ) %>%
@@ -258,7 +258,7 @@ top10_H23 <- bind_rows(
     )
   )
 
-top10_H23 <- top10_H23 %>%
+RNA_top10_H23 <- RNA_top10_H23 %>%
   arrange(log2FoldChange) %>%
   mutate(
     Gene = factor(
@@ -269,8 +269,8 @@ top10_H23 <- top10_H23 %>%
 #--------------------------------------------
 # 24h | Top 10 H23 - plotting
 #--------------------------------------------
-p_RNA_top10_H23 <- ggplot(
-  top10_H23,
+RNA_p_top10_H23 <- ggplot(
+  RNA_top10_H23,
   aes(
     x = log2FoldChange,
     y = Gene
@@ -356,16 +356,16 @@ p_RNA_top10_H23 <- ggplot(
 # 24h | Top 10 H23 - saving results
 #--------------------------------------------
 ggsave(
-  filename = "Transcriptome_Top10_H23.pdf",
-  plot = p_RNA_top10_H23,
+  filename = "18_Transcriptome_Top10_H23.pdf",
+  plot = RNA_p_top10_H23,
   width = 21*1/3,
   height = 7,
   units = "cm"
 )
 
 ggsave(
-  filename = "Transcriptome_Top10_H23.jpg",
-  plot = p_RNA_top10_H23,
+  filename = "18_Transcriptome_Top10_H23.jpg",
+  plot = RNA_p_top10_H23,
   width = 21*1/3,
   height = 7,
   units = "cm"
@@ -373,9 +373,9 @@ ggsave(
 #--------------------------------------------
 # 24h | Volcano Plot Control - Plotting
 #--------------------------------------------
-p_volcano_RNA_Con <- plot_volcano(
+RNA_p_volcano_Con <- plot_volcano_RNA(
   data = ready_RCon_24h,
-  title = "Transcriptome, Control, 24 h",
+  title = "Transcriptome \nControl, 24 h",
   x_title = expression(
     log[2] * "(HCC44 / NCI-H23)"
   ),
@@ -383,22 +383,22 @@ p_volcano_RNA_Con <- plot_volcano(
   p_cutoff = 0.05,
   n_labels = 2,
   xlim = c(-15, 15),
-  ylim = c(0, 10)
-)
+  ylim = c(0, 10),
+  extra_genes=c( "SPOCK2","CCND2","TNS4","KRT81"))
 #--------------------------------------------
 # 24h | Volcano Plot Control - Saving
 #--------------------------------------------
 ggsave(
-  filename = "Transcriptome_Volcano_Con.pdf",
-  plot = p_volcano_RNA_Con,
+  filename = "18_Transcriptome_Volcano_Con.pdf",
+  plot = RNA_p_volcano_Con,
   width = 21*1/3,
   height = 7,
   units = "cm"
 )
 
 ggsave(
-  filename = "Transcriptome_Volcano_Con.jpg",
-  plot = p_volcano_RNA_Con,
+  filename = "18_Transcriptome_Volcano_Con.jpg",
+  plot = RNA_p_volcano_Con,
   width = 21*1/3,
   height = 7,
   units = "cm"
@@ -406,7 +406,7 @@ ggsave(
 #--------------------------------------------
 # 24h | Top 10 Control - filtering
 #--------------------------------------------
-top10_Con_down <- ready_RCon_24h %>%
+RNA_top10_Con_down <- ready_RCon_24h %>%
   filter(
     pval < 0.05,
     log2FoldChange < -1
@@ -414,7 +414,7 @@ top10_Con_down <- ready_RCon_24h %>%
   arrange(log2FoldChange) %>%
   slice_head(n = 10)
 
-top10_Con_up <- ready_RCon_24h %>%
+RNA_top10_Con_up <- ready_RCon_24h %>%
   filter(
     pval < 0.05,
     log2FoldChange > 1
@@ -422,9 +422,9 @@ top10_Con_up <- ready_RCon_24h %>%
   arrange(desc(log2FoldChange)) %>%
   slice_head(n = 10)
 
-top10_Con <- bind_rows(
-  top10_Con_down,
-  top10_Con_up
+RNA_top10_Con <- bind_rows(
+  RNA_top10_Con_down,
+  RNA_top10_Con_up
 ) %>%
   mutate(
     neg_log10_p = -log10(pval),
@@ -435,7 +435,7 @@ top10_Con <- bind_rows(
     )
   )
 
-top10_Con <- top10_Con %>%
+RNA_top10_Con <- RNA_top10_Con %>%
   arrange(log2FoldChange) %>%
   mutate(
     Gene = factor(
@@ -446,7 +446,7 @@ top10_Con <- top10_Con %>%
 #--------------------------------------------
 # 24h | Top 10 Control - plotting
 #--------------------------------------------
-p_RNA_top10_Con <- ggplot(
+RNA_p_top10_Con <- ggplot(
   top10_Con,
   aes(
     x = log2FoldChange,
@@ -486,7 +486,7 @@ p_RNA_top10_Con <- ggplot(
     expand = expansion(mult = c(0.05, 0.05))
   ) +
   labs(
-    title = "Transcriptome differences, Control, 24 h",
+    title = "Transcriptome differences \nControl, 24 h",
     x = expression(log[2] * "(HCC44 / NCI-H23)"),
     y = NULL
   ) +
@@ -533,16 +533,16 @@ p_RNA_top10_Con <- ggplot(
 # 24h | Top 10 Control - saving results
 #--------------------------------------------
 ggsave(
-  filename = "Transcriptome_Top10_Con.pdf",
-  plot = p_RNA_top10_Con,
+  filename = "18_Transcriptome_Top10_Con.pdf",
+  plot = RNA_p_top10_Con,
   width = 21*1/3,
   height = 7,
   units = "cm"
 )
 
 ggsave(
-  filename = "Transcriptome_Top10_Con.jpg",
-  plot = p_RNA_top10_Con,
+  filename = "18_Transcriptome_Top10_Con.jpg",
+  plot = RNA_p_top10_Con,
   width = 21*1/3,
   height = 7,
   units = "cm"
@@ -550,7 +550,7 @@ ggsave(
 #--------------------------------------------
 # 24h | Top 10 Radiation - filtering
 #--------------------------------------------
-top10_RAD_down <- ready_RRAD_24h %>%
+RNA_top10_Rad_down <- ready_RRad_24h %>%
   filter(
     pval < 0.05,
     log2FoldChange < -1
@@ -558,7 +558,7 @@ top10_RAD_down <- ready_RRAD_24h %>%
   arrange(log2FoldChange) %>%
   slice_head(n = 10)
 
-top10_RAD_up <- ready_RRAD_24h %>%
+RNA_top10_Rad_up <- ready_RRad_24h %>%
   filter(
     pval < 0.05,
     log2FoldChange > 1
@@ -566,9 +566,9 @@ top10_RAD_up <- ready_RRAD_24h %>%
   arrange(desc(log2FoldChange)) %>%
   slice_head(n = 10)
 
-top10_RAD <- bind_rows(
-  top10_RAD_down,
-  top10_RAD_up
+RNA_top10_Rad <- bind_rows(
+  RNA_top10_Rad_down,
+  RNA_top10_Rad_up
 ) %>%
   mutate(
     neg_log10_p = -log10(pval),
@@ -579,7 +579,7 @@ top10_RAD <- bind_rows(
     )
   )
 
-top10_RAD <- top10_RAD %>%
+RNA_top10_Rad <- RNA_top10_Rad %>%
   arrange(log2FoldChange) %>%
   mutate(
     Gene = factor(
@@ -590,9 +590,9 @@ top10_RAD <- top10_RAD %>%
 #--------------------------------------------
 # 24h | Volcano Plot Radiation - Plotting
 #--------------------------------------------
-p_volcano_RNA_Rad <- plot_volcano(
-  data = ready_RRAD_24h,
-  title = "Transcriptome, Radiation, 24 h",
+RNA_p_volcano_Rad <- plot_volcano_RNA(
+  data = ready_RRad_24h,
+  title = "Transcriptome \nRadiation, 24 h",
   x_title = expression(
     log[2] * "(HCC44 / NCI-H23)"
   ),
@@ -606,16 +606,16 @@ p_volcano_RNA_Rad <- plot_volcano(
 # 24h | Volcano Plot Radiation - Saving
 #--------------------------------------------
 ggsave(
-  filename = "Transcriptome_Volcano_RAD.pdf",
-  plot = p_volcano_RNA_Rad,
+  filename = "18_Transcriptome_Volcano_Rad.pdf",
+  plot = RNA_p_volcano_Rad,
   width = 21*1/3,
   height = 7,
   units = "cm"
 )
 
 ggsave(
-  filename = "Transcriptome_Volcano_RAD.jpg",
-  plot = p_volcano_RNA_Rad,
+  filename = "18_Transcriptome_Volcano_Rad.jpg",
+  plot = RNA_p_volcano_Rad,
   width = 21*1/3,
   height = 7,
   units = "cm"
@@ -623,7 +623,7 @@ ggsave(
 #--------------------------------------------
 # 24h | Top 10 Radiatiom - filtering
 #--------------------------------------------
-top10_RAD_down <- ready_RRAD_24h %>%
+RNA_top10_Rad_down <- ready_RRad_24h %>%
   filter(
     pval < 0.05,
     log2FoldChange < -1
@@ -631,7 +631,7 @@ top10_RAD_down <- ready_RRAD_24h %>%
   arrange(log2FoldChange) %>%
   slice_head(n = 10)
 
-top10_RAD_up <- ready_RRAD_24h %>%
+RNA_top10_Rad_up <- ready_RRad_24h %>%
   filter(
     pval < 0.05,
     log2FoldChange > 1
@@ -639,9 +639,9 @@ top10_RAD_up <- ready_RRAD_24h %>%
   arrange(desc(log2FoldChange)) %>%
   slice_head(n = 10)
 
-top10_RAD <- bind_rows(
-  top10_RAD_down,
-  top10_RAD_up
+RNA_top10_Rad <- bind_rows(
+  RNA_top10_Rad_down,
+  RNA_top10_Rad_up
 ) %>%
   mutate(
     neg_log10_p = -log10(pval),
@@ -652,7 +652,7 @@ top10_RAD <- bind_rows(
     )
   )
 
-top10_RAD <- top10_RAD %>%
+RNA_top10_Rad <- RNA_top10_Rad %>%
   arrange(log2FoldChange) %>%
   mutate(
     Gene = factor(
@@ -663,8 +663,8 @@ top10_RAD <- top10_RAD %>%
 #--------------------------------------------
 # 24h | Top 10 Radiation - plotting
 #--------------------------------------------
-p_RNA_top10_RAD <- ggplot(
-  top10_RAD,
+RNA_p_top10_Rad <- ggplot(
+  top10_Rad,
   aes(
     x = log2FoldChange,
     y = Gene
@@ -750,16 +750,16 @@ p_RNA_top10_RAD <- ggplot(
 # 24h | Top 10 Radiation - saving results
 #--------------------------------------------
 ggsave(
-  filename = "Transcriptome_Top10_RAD.pdf",
-  plot = p_RNA_top10_RAD,
+  filename = "18_Transcriptome_Top10_Rad.pdf",
+  plot = RNA_p_top10_Rad,
   width = 21*1/3,
   height = 7,
   units = "cm"
 )
 
 ggsave(
-  filename = "Transcriptome_Top10_RAD.jpg",
-  plot = p_RNA_top10_RAD,
+  filename = "18_Transcriptome_Top10_Rad.jpg",
+  plot = RNA_p_top10_Rad,
   width = 21*1/3,
   height = 7,
   units = "cm"
