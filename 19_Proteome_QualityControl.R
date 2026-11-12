@@ -6,6 +6,14 @@ load_stat_data_p(
   mode = "ready"
 )
 
+mean_pHCC44_24h <- read.csv(
+  file.path(dirs$results, "15_Proteome_DifferentialExpression", "15_Proteome_mean_pHCC44_24h.csv")
+)
+
+mean_pH23_24h <- read.csv(
+  file.path(dirs$results, "15_Proteome_DifferentialExpression", "15_Proteome_mean_pH23_24h.csv")
+)
+
 for (cellline in c("H23", "HCC44")) {
   for (time in c("0h", "2h", "6h", "24h", "48h")) {
     for (treatment in c("c", "2Gy")) {
@@ -32,13 +40,13 @@ ann_colors <- list(
 )
 
 H23_colours <- c(
-  "ctrl" = "#5F8F29",
-  "2 Gy" = "#F09837"
+  "NCI-H23 ctrl" = "#5F8F29",
+  "NCI-H23 2 Gy" = "#F09837"
 )
 
 HCC44_colours <- c(
-  "ctrl" ="#4294F7",
-  "2 Gy" = "#EA4025"
+  "HCC44 ctrl" ="#4294F7",
+  "HCC44 2 Gy" = "#EA4025"
 )
 
 PCA_colours <- c(
@@ -67,21 +75,28 @@ protein_colours <- c(
   "NCI-H23 24 h 2 Gy"   = "#F09837"
 )
 
+venn_colours <- c(
+  "#4294F7",
+  "#EA4025",
+  "#5F8F29",
+  "#F09837"
+)
+
 my_colors <-rev(colorRampPalette(brewer.pal(11, "RdYlBu"))(100))
 #--------------------------------------------
 # Proteome - intensity binding data
 #--------------------------------------------
 # HCC44
-result_HCC44 <- make_box_all("HCC44")
+Protein_intensity_HCC44 <- make_box_all("HCC44")
 
-box_HCC44_values <- result_HCC44$box
-dat_HCC44_labels   <- result_HCC44$labels
+Protein_intensity_HCC44_values <- Protein_intensity_HCC44$box
+Protein_intensity_HCC44_labels   <- Protein_intensity_HCC44$labels
 
 # NCI-H23
-result_H23 <- make_box_all("H23")
+Protein_intensity_result_H23 <- make_box_all("H23")
 
-box_H23_values <- result_H23$box
-dat_H23_labels   <- result_H23$labels
+Protein_intensity_H23_values <- Protein_intensity_result_H23$box
+Protein_intensity_H23_labels   <- Protein_intensity_result_H23$labels
 #--------------------------------------------
 # Intensity Bar Plot
 #--------------------------------------------
@@ -102,10 +117,10 @@ for (cellline in c("H23", "HCC44")) {
       paste0(time, "_", treatment, "_", 1:4)
     }))
   }))
-  assign(paste0("Proteome_box_", cellline, "_all"), combined)
+  assign(paste0("Protein_intensity_box_", cellline, "_all"), combined)
 }
 
-Proteome_box_H23_long <- Proteome_box_H23_all %>%
+Protein_intensity_box_H23_long <-Protein_intensity_box_H23_all %>%
   pivot_longer(
     cols = everything(),
     names_to = "Sample",
@@ -113,8 +128,8 @@ Proteome_box_H23_long <- Proteome_box_H23_all %>%
   ) %>%
   mutate(
     Sample_ID = rep(
-      seq_len(ncol(Proteome_box_H23_all)),
-      each = nrow(Proteome_box_H23_all)
+      seq_len(ncol(Protein_intensity_box_H23_all)),
+      each = nrow(Protein_intensity_box_H23_all)
     ),
     Time = case_when(
       Sample_ID <= 8  ~ "0 h",
@@ -128,10 +143,10 @@ Proteome_box_H23_long <- Proteome_box_H23_all %>%
       "ctrl",
       "2 Gy"
     ),
-    Group = paste(Time, Treatment)
+    Group = paste("NCI-H23", Treatment)
   )
 
-Proteome_box_HCC44_long <- Proteome_box_HCC44_all %>%
+Protein_intensity_box_HCC44_long <- Protein_intensity_box_HCC44_all %>%
   pivot_longer(
     cols = everything(),
     names_to = "Sample",
@@ -139,8 +154,8 @@ Proteome_box_HCC44_long <- Proteome_box_HCC44_all %>%
   ) %>%
   mutate(
     Sample_ID = rep(
-      seq_len(ncol(Proteome_box_HCC44_all)),
-      each = nrow(Proteome_box_HCC44_all)
+      seq_len(ncol(Protein_intensity_box_HCC44_all)),
+      each = nrow(Protein_intensity_box_HCC44_all)
     ),
     Time = case_when(
       Sample_ID <= 8  ~ "0 h",
@@ -154,18 +169,18 @@ Proteome_box_HCC44_long <- Proteome_box_HCC44_all %>%
       "ctrl",
       "2 Gy"
     ),
-    Group = paste(Time, Treatment)
+    Group = paste("HCC44", Treatment)
   )
 
-Proteome_box_H23_long$Intensity<- log2(exp(Proteome_box_H23_long$Intensity)+1)
-Proteome_box_HCC44_long$Intensity<- log2(exp(Proteome_box_HCC44_long$Intensity)+1)
+Protein_intensity_box_H23_long$Intensity<- log10(2^(Protein_intensity_box_H23_long$Intensity)+1)
+Protein_intensity_box_HCC44_long$Intensity<- log10(2^(Protein_intensity_box_HCC44_long$Intensity)+1)
 
-p_H23_intensity_proteome <- ggplot(
-  Proteome_box_HCC44_long,
+Protein_p_H23_intensity<- ggplot(
+  Protein_intensity_box_H23_long,
     aes(
       x = factor(Sample_ID),
       y = Intensity,
-      fill = Treatment
+      fill = Group
     )
   ) +
   geom_violin(
@@ -185,26 +200,20 @@ p_H23_intensity_proteome <- ggplot(
     colour = "black",
     na.rm = TRUE
   ) +
-  geom_hline(
-    yintercept = 0,
-    linetype = "dotted",
-    linewidth = 0.5,
-    colour = "black"
-  ) +
   scale_fill_manual(
     values = H23_colours
   ) +
   scale_y_continuous(
-    breaks = c(0, 10,20,30,40,50),
+    breaks = c(0,5,10,15),
     minor_breaks = c(15,25,35,45),
-    expand = expansion(mult = c(0, 0.03))
+    expand = expansion(mult = c(0, 0.05))
   ) +
   scale_x_discrete(
     breaks = as.character(c(1, 9, 17, 25, 33)),
     labels = c("0 h", "2 h", "6 h", "24 h", "48 h")
   ) +
   coord_cartesian(
-    ylim = c(-2, 50),
+    ylim = c(-1, 10),
     clip = "off"
   ) +
   labs(
@@ -214,28 +223,28 @@ p_H23_intensity_proteome <- ggplot(
   ) +
   theme_prism_xcell() +
   theme(
-    axis.text.x = element_text(
-      angle = 25,
-      hjust = 1,
-      vjust = 1,
-      size = 8
-    ),
+    axis.line = element_line(
+      colour = "black",
+      linewidth = 0.5),
     legend.position = "bottom",
     legend.direction = "horizontal",
     legend.box.just = "left",
-    
-    legend.text = element_text(size = 6.5),
+    legend.text = element_text(size = 10),
     legend.key.width = grid::unit(3, "mm"),
     legend.key.height = grid::unit(2.5, "mm"),
     legend.key.spacing.x = grid::unit(1, "mm"),
     legend.spacing.x = grid::unit(0, "mm"),
-    
-    plot.margin = margin(10, 10, 5, 10),
-    axis.line = element_line(
-      colour = "black",
-      linewidth = 0.5
+    legend.box.spacing = grid::unit(2, "mm"),
+    plot.title = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text = element_text(size = 12),
+    plot.margin = margin(
+      t = 10,
+      r = 10,
+      b = 10,
+      l = 10
     )
-  ) +
+  )  +
   guides(
     fill = guide_legend(
       title = NULL,
@@ -243,12 +252,12 @@ p_H23_intensity_proteome <- ggplot(
     )
   )
 
-p_HCC44_intensity_proteome <- ggplot(
-  Proteome_box_HCC44_long,
+Protein_p_HCC44_intensity <- ggplot(
+  Protein_intensity_box_HCC44_long,
   aes(
     x = factor(Sample_ID),
     y = Intensity,
-    fill = Treatment
+    fill = Group
   )
 ) +
   geom_violin(
@@ -268,26 +277,20 @@ p_HCC44_intensity_proteome <- ggplot(
     colour = "black",
     na.rm = TRUE
   ) +
-  geom_hline(
-    yintercept = 0,
-    linetype = "dotted",
-    linewidth = 0.5,
-    colour = "black"
-  ) +
   scale_fill_manual(
     values = HCC44_colours
   ) +
   scale_y_continuous(
-    breaks = c(0, 10,20,30,40,50),
+    breaks = c(0, 5,10),
     minor_breaks = c(15,25,35,45),
-    expand = expansion(mult = c(0, 0.03))
+    expand = expansion(mult = c(0, 0.05))
   ) +
   scale_x_discrete(
     breaks = as.character(c(1, 9, 17, 25, 33)),
     labels = c("0 h", "2 h", "6 h", "24 h", "48 h")
   ) +
   coord_cartesian(
-    ylim = c(-2, 50),
+    ylim = c(-1, 10),
     clip = "off"
   ) +
   labs(
@@ -297,28 +300,28 @@ p_HCC44_intensity_proteome <- ggplot(
   ) +
   theme_prism_xcell() +
   theme(
-    axis.text.x = element_text(
-      angle = 35,
-      hjust = 1,
-      vjust = 1,
-      size = 8
-    ),
+    axis.line = element_line(
+      colour = "black",
+      linewidth = 0.5),
     legend.position = "bottom",
     legend.direction = "horizontal",
     legend.box.just = "left",
-    
-    legend.text = element_text(size = 6.5),
+    legend.text = element_text(size = 10),
     legend.key.width = grid::unit(3, "mm"),
     legend.key.height = grid::unit(2.5, "mm"),
     legend.key.spacing.x = grid::unit(1, "mm"),
     legend.spacing.x = grid::unit(0, "mm"),
-    
-    plot.margin = margin(10, 10, 5, 10),
-    axis.line = element_line(
-      colour = "black",
-      linewidth = 0.5
+    legend.box.spacing = grid::unit(2, "mm"),
+    plot.title = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text = element_text(size = 12),
+    plot.margin = margin(
+      t = 10,
+      r = 10,
+      b = 10,
+      l = 10
     )
-  ) +
+  )  +
   guides(
     fill = guide_legend(
       title = NULL,
@@ -326,22 +329,24 @@ p_HCC44_intensity_proteome <- ggplot(
     )
   )  
 
-p_proteome_intensity_qc <- p_H23_intensity_proteome / p_HCC44_intensity_proteome +
+Protein_p_H23_HCC44_intensity_final <- Protein_p_H23_intensity / Protein_p_HCC44_intensity +
   plot_layout(
-    ncol = 1,
     guides = "collect"
-  )  
+  )  &
+  theme(
+    legend.position = "bottom"
+  )
 #--------------------------------------------
 # Principal Components Analysis
 #-------------------------------------------- 
-pbase_pca_filt <- data.frame(
+Protein_PCA_data <- data.frame(
   log2(raw_H23_24h_c[, 5:8]),
   log2(raw_H23_24h_2Gy[, 5:8]),
   log2(raw_HCC44_24h_c[, 5:8]),
   log2(raw_HCC44_24h_2Gy[, 5:8])
 )
 
-pbase_pca_filt <- pbase_pca_filt %>%
+Protein_PCA_data <- Protein_PCA_data %>%
   mutate(
     across(
       everything(),
@@ -349,27 +354,27 @@ pbase_pca_filt <- pbase_pca_filt %>%
     )
   )
 
-pbase_pca_filt <- pbase_pca_filt[
-  complete.cases(pbase_pca_filt),
+Protein_PCA_data <- Protein_PCA_data[
+  complete.cases(Protein_PCA_data),
 ]
 
-pbase_pca_filt <- t(pbase_pca_filt)
+Protein_PCA_data <- t(Protein_PCA_data)
 
-pc_pbase_pca_filt <- prcomp(
-  pbase_pca_filt,
+Protein_PCA_res <- prcomp(
+  Protein_PCA_data,
   center = TRUE,
   scale. = TRUE
 )
 
-proteome_pca_variance <- pc_pbase_pca_filt$sdev^2 /
-  sum(pc_pbase_pca_filt$sdev^2) * 100
+Protein_PCA_variance <- Protein_PCA_res$sdev^2 /
+  sum(Protein_PCA_res$sdev^2) * 100
 
-proteome_PC1_var <- proteome_pca_variance[1]
-proteome_PC2_var <- proteome_pca_variance[2]
+Protein_PC1_var <- Protein_PCA_variance[1]
+Protein_PC2_var <- Protein_PCA_variance[2]
 
-proteome_pca_data <- as.data.frame(pc_pbase_pca_filt$x[, 1:2])
+Protein_PCA_res_plot_data <- as.data.frame(Protein_PCA_res$x[, 1:2])
 
-proteome_pca_data$Group <- factor(
+Protein_PCA_res_plot_data$Group <- factor(
   c(
     rep("NCI-H23 ctrl", 4),
     rep("NCI-H23 2 Gy", 4),
@@ -384,8 +389,8 @@ proteome_pca_data$Group <- factor(
   )
 )
 
-p_proteome_PCA <- ggplot(
-  proteome_pca_data,
+Protein_p_PCA <- ggplot(
+  Protein_PCA_res_plot_data,
   aes(
     x = PC1,
     y = PC2,
@@ -428,7 +433,7 @@ p_proteome_PCA <- ggplot(
   scale_y_continuous(
     breaks = c(-100,-50, 0, 50, 100),
     minor_breaks = c(-75,-25, 25,75),
-    expand = expansion(mult = c(0, 0))
+    expand = expansion(mult = c(0.05, 0.05))
   ) +
   coord_cartesian(
     xlim = c(-100, 100),
@@ -436,15 +441,15 @@ p_proteome_PCA <- ggplot(
     clip = "off"
   ) +
   labs(
-    title = "Proteome, 24 h",
+    title = "Proteome, 0 h",
     x = paste0(
       "PCA1 (",
-      round(proteome_PC1_var, 1),
+      round(Protein_PC1_var, 1),
       "%)"
     ),
     y = paste0(
       "PCA2 (",
-      round(proteome_PC2_var, 1),
+      round(Protein_PC2_var, 1),
       "%)"
     )
   ) +
@@ -454,7 +459,7 @@ p_proteome_PCA <- ggplot(
     legend.direction = "horizontal",
     legend.box.just = "left",
     
-    legend.text = element_text(size = 6.5),
+    legend.text = element_text(size = 8.5),
     
     legend.key.width = grid::unit(3, "mm"),
     legend.key.height = grid::unit(2.5, "mm"),
@@ -463,16 +468,16 @@ p_proteome_PCA <- ggplot(
     legend.box.spacing = grid::unit(2, "mm"),
 
       plot.title = element_text(
-      size = 11,
+      size = 12,
       face = "bold",
       hjust = 0.5
     ),
     axis.title = element_text(
-      size = 10,
+      size = 12,
       face = "bold"
     ),
     axis.text = element_text(
-      size = 9,
+      size = 10,
       colour = "black"
     ),
     plot.margin = margin(
@@ -496,7 +501,7 @@ p_proteome_PCA <- ggplot(
 #--------------------------------------------
 # Coefficient of Variation
 #--------------------------------------------
-cov_proteome_HCC44 <- bind_rows(
+Protein_cov_HCC44 <- bind_rows(
   #control
   calculate_cov(
     raw_HCC44_0h_c,
@@ -541,7 +546,7 @@ cov_proteome_HCC44 <- bind_rows(
   )
 )
 
-cov_proteome_H23 <- bind_rows(
+Protein_cov_H23 <- bind_rows(
   # control
   calculate_cov(
     raw_H23_0h_c,
@@ -586,9 +591,9 @@ cov_proteome_H23 <- bind_rows(
   )
 )
 
-cov_proteome_data <- bind_rows(
-  cov_proteome_HCC44,
-  cov_proteome_H23
+Protein_cov_data <- bind_rows(
+  Protein_cov_HCC44,
+  Protein_cov_H23
 ) %>%
   mutate(
     Time = factor(
@@ -607,67 +612,85 @@ cov_proteome_data <- bind_rows(
     )
   )
 
-cov_proteome_density <- cov_proteome_data %>%
-  group_by(
-    Cellline,
-    Treatment,
-    Time
-  ) %>%
-  group_modify(
-    ~ make_density(.x)
-  ) %>%
-  ungroup() %>%
-  mutate(
-    log_CV = log10(CV + 1)
-  )
+Protein_cov_density <- Protein_cov_data %>%
+  group_by(Cellline, Treatment, Time) %>%
+  group_modify(~ make_density(.x)) %>%
+  ungroup()
 
-p_cov_HCC44_ctrl <- plot_cov(
-  cov_proteome_density,
+Protein_p_cov_HCC44_ctrl <- plot_cov(
+  Protein_cov_density,
   cellline = "HCC44",
   treatment = "ctrl",
   title = "HCC44 ctrl"
 )
 
-p_cov_HCC44_2Gy <- plot_cov(
-  cov_proteome_density,
+Protein_p_cov_HCC44_2Gy <- plot_cov(
+  Protein_cov_density,
   cellline = "HCC44",
   treatment = "2 Gy",
   title = "HCC44 2 Gy"
 )
 
-p_cov_H23_ctrl <- plot_cov(
-  cov_proteome_density,
+Protein_p_cov_H23_ctrl <- plot_cov(
+  Protein_cov_density,
   cellline = "NCI-H23",
   treatment = "ctrl",
   title = "NCI-H23 ctrl"
 )
 
-p_cov_H23_2Gy <- plot_cov(
-  cov_proteome_density,
+Protein_p_cov_H23_2Gy <- plot_cov(
+  Protein_cov_density,
   cellline = "NCI-H23",
   treatment = "2 Gy",
   title = "NCI-H23 2 Gy"
 )
 
-p_proteome_cov_final <-
+Protein_p_cov_final <-
   (
-    p_cov_HCC44_ctrl |
-    p_cov_HCC44_2Gy
+    Protein_p_cov_HCC44_ctrl |
+      Protein_p_cov_HCC44_2Gy
   ) /
   (
-    p_cov_H23_ctrl |
-    p_cov_H23_2Gy
+    Protein_p_cov_H23_ctrl |
+      Protein_p_cov_H23_2Gy
   ) +
   plot_layout(
     guides = "collect"
   ) &
   theme(
-    legend.position = "bottom"
+    legend.position = "bottom",
+    axis.text = element_text(
+      size = 10,
+      colour = "black"
+    )
+  )
+
+Protein_p_cov_HCC44_ctrl <- Protein_p_cov_HCC44_ctrl +
+  theme(
+    legend.title = element_text(size = 9, face = "bold"),
+    legend.text = element_text(size = 6)
+  )
+Protein_p_cov_HCC44_2Gy <- Protein_p_cov_HCC44_2Gy +
+  theme(
+    legend.title = element_text(size = 9, face = "bold"),
+    legend.text = element_text(size = 6)
+  )
+
+Protein_p_cov_H23_ctrl <- Protein_p_cov_H23_ctrl +
+  theme(
+    legend.title = element_text(size = 9, face = "bold"),
+    legend.text = element_text(size = 6)
+  )
+
+Protein_p_cov_H23_2Gy <- Protein_p_cov_H23_2Gy +
+  theme(
+    legend.title = element_text(size = 9, face = "bold"),
+    legend.text = element_text(size = 6)
   )
 #--------------------------------------------
 # Bar plot identified Proteins
 #--------------------------------------------
-identified_proteins <- data.frame(
+Protein_identified_proteins <- data.frame(
   Group = c(
     "HCC44 0 h ctrl",
     "HCC44 0 h 2 Gy",
@@ -690,13 +713,13 @@ identified_proteins <- data.frame(
   )
 )
 
-identified_proteins$Group <- factor(
-  identified_proteins$Group,
-  levels = identified_proteins$Group
+Protein_identified_proteins$Group <- factor(
+  Protein_identified_proteins$Group,
+  levels = Protein_identified_proteins$Group
 )
 
-p_identified_proteins <- ggplot(
-  identified_proteins,
+Protein_p_identified_proteins <- ggplot(
+  Protein_identified_proteins,
   aes(
     x = Group,
     y = n,
@@ -710,8 +733,10 @@ p_identified_proteins <- ggplot(
   ) +
   geom_text(
     aes(label = n),
-    vjust = -0.4,
-    size = 3
+    vjust = -0.6,
+    hjust = -0.05,
+    angle = 35,
+    size = 3.5
   ) +
   geom_hline(
     yintercept = 7557,
@@ -723,7 +748,7 @@ p_identified_proteins <- ggplot(
     values = protein_colours
   ) +
   scale_y_continuous(
-    limits = c(0, 11000),
+    limits = c(0, 12000),
     breaks = c(0, 5000, 10000),
     labels = c("0", "5.000", "10.000"),
     expand = expansion(mult = c(0, 0))
@@ -750,94 +775,95 @@ p_identified_proteins <- ggplot(
     axis.ticks.length =
       grid::unit(1.5, "mm"),
     axis.text.x = element_text(
-      size = 8,
+      size = 10,
       angle = 30,
       hjust = 1,
       vjust = 1,
       colour = "black"
     ),
     axis.text.y = element_text(
-      size = 9,
+      size = 10,
       colour = "black"
     ),
     axis.title.y = element_text(
-      size = 10,
+      size = 12,
       face = "bold"
     ),
     legend.position = "none",
     plot.margin = margin(
-      t = 10,
+      t = 15,
       r = 10,
-      b = 10,
+      b = 5,
       l = 10
     )
   )
 
-p_identified_proteins <- p_identified_proteins +
+Protein_p_identified_proteins <- Protein_p_identified_proteins +
  annotate(
     "text",
     x = 8.5,
-    y = 8400,
+    y = 8000,
     label = "Shared proteins:\n8870",
     hjust = 0,
+    vjust = 1.6,
     size = 3
   )
 #--------------------------------------------
 # Heat map
 #--------------------------------------------
-pH23_pHCC44_24h_all_filt <- data.frame(
+Protein_hm_H23_HCC44_all <- data.frame(
   log2(raw_H23_24h_c[, 5:8]),
   log2(raw_H23_24h_2Gy[, 5:8]),
   log2(raw_HCC44_24h_c[, 5:8]),
   log2(raw_HCC44_24h_2Gy[, 5:8])
 )
 
-pH23_pHCC44_24h_all_filt <- pH23_pHCC44_24h_all_filt %>%
+Protein_hm_H23_HCC44_all <- Protein_hm_H23_HCC44_all %>%
   mutate(across(everything(), ~ replace(.x, !is.finite(.x), NA)))
 
-pH23_pHCC44_24h_all_filt <- cbind(
+Protein_hm_H23_HCC44_all <- cbind(
   raw_H23_24h_c[, 1:3],
-  pH23_pHCC44_24h_all_filt
+  Protein_hm_H23_HCC44_all
 )
 
-pH23_pHCC44_24h_all_filt <-
-  pH23_pHCC44_24h_all_filt[
-    complete.cases(pH23_pHCC44_24h_all_filt[, 4:19]),
+Protein_hm_H23_HCC44_all <-
+  Protein_hm_H23_HCC44_all[
+    complete.cases(Protein_hm_H23_HCC44_all[, 4:19]),
   ]
 
-colnames(pH23_pHCC44_24h_all_filt) <- c(
+colnames(Protein_hm_H23_HCC44_all) <- c(
   "ENTREZ",
   "SYMBOL",
   "ID",
 
-  "NCI-H23 c 0h.1",
-  "NCI-H23 c 0h.2",
-  "NCI-H23 c 0h.3",
-  "NCI-H23 c 0h.4",
+  "NCI-H23 c 24h.1",
+  "NCI-H23 c 24h.2",
+  "NCI-H23 c 24h.3",
+  "NCI-H23 c 24h.4",
   
-  "NCI-H23 2Gy 0h.1",
-  "NCI-H23 2Gy 0h.2",
-  "NCI-H23 2Gy 0h.3",
-  "NCI-H23 2Gy 0h.4",
+  "NCI-H23 2Gy 24h.1",
+  "NCI-H23 2Gy 24h.2",
+  "NCI-H23 2Gy 24h.3",
+  "NCI-H23 2Gy 24h.4",
   
-  "HCC44 c 0h.1",
-  "HCC44 c 0h.2",
-  "HCC44 c 0h.3",
-  "HCC44 c 0h.4",
+  "HCC44 c 24h.1",
+  "HCC44 c 24h.2",
+  "HCC44 c 24h.3",
+  "HCC44 c 24h.4",
   
-  "HCC44 2Gy 0h.1",
-  "HCC44 2Gy 0h.2",
-  "HCC44 2Gy 0h.3",
-  "HCC44 2Gy 0h.4"
+  "HCC44 2Gy 24h.1",
+  "HCC44 2Gy 24h.2",
+  "HCC44 2Gy 24h.3",
+  "HCC44 2Gy 24h.4"
 )
 
-proteome_matrix <- as.matrix(
-  pH23_pHCC44_24h_all_filt[, 4:19]
+Protein_hm_matrix <- as.matrix(
+  Protein_hm_H23_HCC44_all[, 4:19]
 )
 
-proteome_z <- t(
+Protein_hm_matrix_z <- t(
   scale(
-    t(proteome_matrix)
+    t(Protein_hm_matrix)
   )
 )
 
@@ -853,15 +879,15 @@ annotation_col <- data.frame(
   check.names = FALSE
 )
 
-rownames(annotation_col) <- colnames(proteome_matrix)
+rownames(annotation_col) <- colnames(Protein_hm_matrix)
 
 identical(
-  colnames(proteome_z),
+  colnames(Protein_hm_matrix_z),
   rownames(annotation_col)
 )
 
-Graph_QC_Proteom_2 <- pheatmap(
-  proteome_z,
+Protein_p_hm_intensity_all <- pheatmap(
+  Protein_hm_matrix_z,
   cluster_rows = TRUE,
   cluster_cols = TRUE,
   annotation_col = annotation_col,
@@ -870,8 +896,44 @@ Graph_QC_Proteom_2 <- pheatmap(
   show_colnames = FALSE,
   show_rownames = FALSE,
   border_color = NA,
-  fontsize = 9
+  fontsize = 12
 )
+#--------------------------------------------
+# Proteome Venn Diagramm
+#--------------------------------------------
+Protein_venn_proteome <- venn.diagram(
+  x = list(
+    "HCC44 ctrl"   = mean_pHCC44_24h[complete.cases(mean_pHCC44_24h[,5]),1],
+    "HCC44 2 Gy"   = mean_pHCC44_24h[complete.cases(mean_pHCC44_24h[,7]),1],
+    "NCI-H23 ctrl" = mean_pH23_24h[complete.cases(mean_pH23_24h[,5]),1],
+    "NCI-H23 2 Gy" = mean_pH23_24h[complete.cases(mean_pH23_24h[,7]),1]
+  ),
+  filename = NULL,
+  fill = venn_colours,
+  alpha = rep(0.65, 4),
+  col = rep("black", 4),
+  lwd = 1.2,
+  lty = "solid",
+  print.mode = "raw",
+  cex = 0.8,
+  fontfamily = "sans",
+  fontface = "plain",
+  cat.cex = 0.9,
+  cat.fontfamily = "sans",
+  cat.fontface = "plain",
+  cat.col = "black",
+  cat.pos = c(335, 25, 340, 20),
+  cat.dist = c(0.25, 0.25, 0.15, 0.15),
+  scaled = FALSE,
+  main = "",
+  main.cex = 1,
+  main.fontfamily = "sans",
+  main.fontface = "bold",
+  main.just = c(0,0.2),
+  margin = 0.25
+)
+
+
 #--------------------------------------------
 # saving results
 #--------------------------------------------
@@ -884,16 +946,16 @@ setwd(file.path(dirs$results, "19_Proteome_QualityControl"))
 
 #1. Saving Intensity violine plot
 ggsave(
-  "Proteome_qc_Intensity.pdf",
-  p_proteome_intensity_qc,
+  "19_Proteome_Intensity.pdf",
+  Protein_p_H23_HCC44_intensity_final,
   width = 28*1/2,
   height = 14,
   units = "cm"
 )
 
 ggsave(
-  "Proteome_qc_Intensity.jpg",
-  p_proteome_intensity_qc,
+  "19_Proteome_Intensity.jpg",
+  Protein_p_H23_HCC44_intensity_final,
   width = 28*1/2,
   height = 14,
   units = "cm",
@@ -902,69 +964,69 @@ ggsave(
 
 #1.a HCC44
 ggsave(
-  "Proteome_qc_Intensity_HCC44.pdf",
-  p_HCC44_intensity_proteome,
+  "19_Proteome_Intensity_HCC44.pdf",
+  Protein_p_HCC44_intensity,
   width = 28*1/2,
-  height = 14,
+  height = 7,
   units = "cm"
 )
 
 ggsave(
-  "Proteome_qc_Intensity_HCC44.jpg",
-  p_HCC44_intensity_proteome,
+  "19_Proteome_Intensity_HCC44.jpg",
+  Protein_p_HCC44_intensity,
   width = 28*1/2,
-  height = 14,
+  height = 7,
   units = "cm",
   dpi = 600
 )
 
 #1.b NCI-H23
 ggsave(
-  "Proteome_qc_Intensity_H23.pdf",
-  p_H23_intensity_proteome,
+  "19_Proteome_Intensity_H23.pdf",
+  Protein_p_H23_intensity,
   width = 28*1/2,
-  height = 14,
+  height = 7,
   units = "cm"
 )
 
 ggsave(
-  "Proteome_qc_Intensity_H23.jpg",
-  p_H23_intensity_proteome,
+  "19_Proteome_Intensity_H23.jpg",
+  Protein_p_H23_intensity,
   width = 28*1/2,
-  height = 14,
+  height = 7,
   units = "cm",
   dpi = 600
 )
 
 #2. Pricipal component Analysis
 ggsave(
-  filename = "Proteome_qc_PCA.pdf",
-  plot = p_proteome_PCA,
+  filename = "19_Proteome_PCA_24h.pdf",
+  plot = Protein_p_PCA,
   width = 21*1/3,
   height = 7,
   units = "cm"
 )
 
 ggsave(
-  filename = "Proteome_qc_PCA.jpg",
-  plot = p_proteome_PCA,
+  filename = "19_Proteome_PCA_24h.jpg",
+  plot = Protein_p_PCA,
   width = 21*1/3,
   height = 7,
   units = "cm"
 )
-
+  
 #3. Coefficient of Variation
 ggsave(
-  filename = "Proteome_qc_COV_all.pdf",
-  plot = p_proteome_cov_final,
+  filename = "19_Proteome_COV_all.pdf",
+  plot = Protein_p_cov_final,
   width = 21*2/3,
   height = 14,
   units = "cm"
 )
 
 ggsave(
-  filename = "Proteome_qc_COV_all.jpg",
-  plot = p_proteome_cov_final,
+  filename = "19_Proteome_COV_all.jpg",
+  plot = Protein_p_cov_final,
   width = 21*2/3,
   height = 14,
   units = "cm"
@@ -972,16 +1034,16 @@ ggsave(
 
 #3.a HCC44 control
 ggsave(
-  filename = "Proteome_qc_COV_HCC44_ctrl.pdf",
-  plot = p_cov_HCC44_ctrl,
+  filename = "19_Proteome_COV_HCC44_ctrl.pdf",
+  plot = Protein_p_cov_HCC44_ctrl,
   width = 21*1/3,
   height = 7,
   units = "cm"
 )
 
 ggsave(
-  filename = "Proteome_qc_COV_HCC44_ctrl.jpg",
-  plot = p_cov_HCC44_ctrl,
+  filename = "19_Proteome_COV_HCC44_ctrl.jpg",
+  plot = Protein_p_cov_HCC44_ctrl,
   width = 21*1/3,
   height = 7,
   units = "cm"
@@ -989,16 +1051,16 @@ ggsave(
 
 #3.b HCC44 2Gy
 ggsave(
-  filename = "Proteome_qc_COV_HCC44_2Gy.pdf",
-  plot = p_cov_HCC44_2Gy,
+  filename = "19_Proteome_COV_HCC44_2Gy.pdf",
+  plot = Protein_p_cov_HCC44_2Gy,
   width = 21*1/3,
   height = 7,
   units = "cm"
 )
 
 ggsave(
-  filename = "Proteome_qc_COV_HCC44_2Gy.jpg",
-  plot = p_cov_HCC44_2Gy,
+  filename = "19_Proteome_COV_HCC44_2Gy.jpg",
+  plot = Protein_p_cov_HCC44_2Gy,
   width = 21*1/3,
   height = 7,
   units = "cm"
@@ -1006,16 +1068,16 @@ ggsave(
 
 #3.c NCI-H23 control
 ggsave(
-  filename = "Proteome_qc_COV_H23_ctrl.pdf",
-  plot = p_cov_H23_ctrl,
+  filename = "19_Proteome_COV_H23_ctrl.pdf",
+  plot = Protein_p_cov_H23_ctrl,
   width = 21*1/3,
   height = 7,
   units = "cm"
 )
 
 ggsave(
-  filename = "Proteome_qc_COV_H23_ctrl.jpg",
-  plot = p_cov_H23_ctrl,
+  filename = "19_Proteome_COV_H23_ctrl.jpg",
+  plot = Protein_p_cov_H23_ctrl,
   width = 21*1/3,
   height = 7,
   units = "cm"
@@ -1023,16 +1085,16 @@ ggsave(
 
 #3.d NCI-H23 2 Gy
 ggsave(
-  filename = "Proteome_qc_COV_H23_2Gy.pdf",
-  plot = p_cov_H23_2Gy,
+  filename = "19_Proteome_COV_H23_2Gy.pdf",
+  plot = Protein_p_cov_H23_2Gy,
   width = 21*1/3,
   height = 7,
   units = "cm"
 )
 
 ggsave(
-  filename = "Proteome_qc_COV_H23_2Gy.jpg",
-  plot = p_cov_H23_2Gy,
+  filename = "19_Proteome_COV_H23_2Gy.jpg",
+  plot = Protein_p_cov_H23_2Gy,
   width = 21*1/3,
   height = 7,
   units = "cm"
@@ -1040,16 +1102,16 @@ ggsave(
 
 #5. Identified Proteins
 ggsave(
-  "Proteome_qc_identifiedProteins.pdf",
-  p_identified_proteins,
+  "19_Proteome_identifiedProteins.pdf",
+  Protein_p_identified_proteins,
   width = 21*2/3,
   height = 7,
   units = "cm"
 )
 
 ggsave(
-  "Proteome_qc_identifiedProteins.jpg",
-  p_identified_proteins,
+  "19_Proteome_identifiedProteins.jpg",
+  Protein_p_identified_proteins,
   width = 21*2/3,
   height = 7,
   units = "cm",
@@ -1058,14 +1120,34 @@ ggsave(
 
 #6. Heatmaps
 pdf(
-  "Proteome_Heatmap.pdf",
+  "19_Proteome_Heatmap_all_unfiltered.pdf",
   width = 21*1/3,
   height = 3.5
 )
 
 grid::grid.newpage()
-grid::grid.draw(Graph_QC_Proteom_2$gtable)
-
+grid::grid.draw(Protein_p_hm_intensity_all$gtable)
 dev.off()
-#-----------------------------------------------
+
+#7. Venn Diagramm
+pdf(
+  "19_Proteome_VennDiagram",
+  width = 9 / 2.54,
+  height = 7 / 2.54,
+  useDingbats = FALSE
+)
+grid.newpage()
+grid.draw(Protein_venn_proteome)
+grid.text(
+  "Proteome",
+  x = 0.5,
+  y = 0.75,
+  gp = gpar(
+    fontsize = 14,
+    fontface = "bold",
+    fontfamily = "sans"
+  )
+)
+dev.off()
+#--------------------------------------------
 setwd(dirs$code)
