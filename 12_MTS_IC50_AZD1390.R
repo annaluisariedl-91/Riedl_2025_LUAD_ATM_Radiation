@@ -1,7 +1,7 @@
 #-----------------------------------------
 # setting path
 #-----------------------------------------
-setwd(file.path(base_dir,"functional_assays","MTS assays","Exp2_IC50_AZD1390","processed")) #replace with path on your own PC
+setwd(file.path(dirs$MTS,"Exp2_IC50_AZD1390","processed")) #replace with path on your own PC
 
 MTS_raw_IC50_HCC44 <- read_IC50("HCC44")
 MTS_raw_IC50_H23   <- read_IC50("NCI-H23")
@@ -14,27 +14,46 @@ MTS_IC50_raw <- bind_rows(
 )
 
 MTS_IC50_norm_control <- MTS_IC50_raw %>%
-  group_by(Cellline, BioReplicate) %>%
+  group_by(Cellline, BioReplicate, Block) %>%
   mutate(
-    rel_Intensity = Intensity /
-      mean(Intensity[Concentration == 0], na.rm = TRUE),
-    Dose_log = Concentration 
+    Control_plate = mean(
+      Intensity[Concentration == 0],
+      na.rm = TRUE
+    ),
+    rel_Intensity = Intensity / Control_plate,
+    Dose_log = Concentration
   ) %>%
   ungroup()
 
-MTS_IC50_summary <- MTS_IC50_norm_control %>%
+MTS_IC50_plate <- MTS_IC50_norm_control %>%
+  group_by(Cellline, BioReplicate, Block, Concentration) %>%
+  summarise(
+    n_tech = sum(!is.na(rel_Intensity)),
+    mean_rel_Intensity = mean(rel_Intensity, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+MTS_IC50_biorep <- MTS_IC50_plate %>%
+  group_by(Cellline, BioReplicate, Concentration) %>%
+  summarise(
+    n_plate = sum(!is.na(mean_rel_Intensity)),
+    mean_rel_Intensity = mean(mean_rel_Intensity, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+MTS_IC50_summary <- MTS_IC50_biorep %>%
   group_by(Cellline, Concentration) %>%
   summarise(
-    n = sum(!is.na(rel_Intensity)),
-    mean_rel_Intensity = mean(rel_Intensity, na.rm = TRUE),
-    sd_rel_Intensity = sd(rel_Intensity, na.rm = TRUE),
+    n = sum(!is.na(mean_rel_Intensity)),
+    mean_rel_Intensity2 = mean(mean_rel_Intensity, na.rm = TRUE),
+    sd_rel_Intensity = sd(mean_rel_Intensity, na.rm = TRUE),
     sem_rel_Intensity = sd_rel_Intensity / sqrt(n),
     .groups = "drop"
   )
 #-----------------------------------------
 # IC50 modelling
 #-----------------------------------------
-MTS_global_IC50_model <- MTS_IC50_raw %>%
+MTS_IC50_global_model <- MTS_IC50_raw %>%
   group_by(Cellline) %>%
   mutate(
     Dose_log = Concentration, 
@@ -43,30 +62,33 @@ MTS_global_IC50_model <- MTS_IC50_raw %>%
   ) %>%
   ungroup()
 
-MTS_model_IC50 <- drc::drm(
+MTS_IC50_global_model_IC50 <- drc::drm(
   viability_norm ~ Dose_log,
-  data = MTS_global_IC50_model %>%
-    filter(Cellline == "HCC44"),
+  data = MTS_IC50_global_model %>%
+    dplyr::filter(Cellline == "HCC44"),
   fct = drc::LL.4()
 )
 
-MTS_IC50_values <- as.data.frame(
-  drc::ED(
-    MTS_model_IC50,
-    50,
-    type = "absolute",
-    interval = "delta"
+MTS_IC50_global_model_values <- drc::ED(
+  MTS_IC50_global_model_IC50,
+  50,
+  type = "absolute",
+  interval = "delta"
+) %>%
+  as.data.frame() %>%
+  dplyr::mutate(
+    Cellline = "HCC44",
+    .before = 1
   )
-)
-
-MTS_IC50_values$Cellline <- "HCC44"
-
+#-----------------------------------------
+# Prediction for curve plotting
+#-----------------------------------------
 MTS_IC50_predictions <- MTS_IC50_summary %>%
   filter(Concentration > 0) %>%
   group_by(Cellline) %>%
   group_modify(~ {
     model <- loess(
-      mean_rel_Intensity ~ log10(Concentration),
+      mean_rel_Intensity2 ~ log10(Concentration),
       data = .x,
       span = 1
     )
@@ -85,7 +107,7 @@ MTS_IC50_predictions <- MTS_IC50_summary %>%
   }) %>%
   ungroup()
 
-MTS_IC50_text <- MTS_IC50_values %>%
+MTS_IC50_text <- MTS_IC50_global_model_values %>%
   mutate(
     label = ifelse(
       is.na(Estimate),
@@ -116,15 +138,15 @@ MTS_IC50_text <- paste0(
 #-----------------------------------------
 # statistics
 #-----------------------------------------
-MTS_IC50_stats <- MTS_IC50_norm_control %>%
+MTS_IC50_stats <- MTS_IC50_biorep %>%
   group_by(
     Cellline,
     BioReplicate,
-    Block,
+    #Block,
     Concentration
   ) %>%
   summarise(
-    viability = mean(rel_Intensity, na.rm = TRUE) * 100,
+    viability = mean(mean_rel_Intensity, na.rm = TRUE) * 100,
     .groups = "drop"
   ) %>%
   mutate(
@@ -134,40 +156,38 @@ MTS_IC50_stats <- MTS_IC50_norm_control %>%
       levels = c(0, 0.01, 0.1, 1, 10, 100)
     ),
     BioReplicate = factor(BioReplicate),
-    Block = factor(Block),
+    #Block = factor(Block),
     SampleID = interaction(
       Cellline,
       BioReplicate,
-      Block,
+      #Block,
       drop = TRUE
     )
   )
 
-MTS_model_IC50 <- nlme::lme(
+MTS_IC50_model <- nlme::lme(
   viability ~ Cellline * Concentration,
-  random = ~ 1 | BioReplicate/Block,
+  random = ~ 1 | BioReplicate,#/Block,
   data = MTS_IC50_stats,
   method = "REML"
 )
 
-MTS_anova_IC50<-anova(MTS_model_IC50)
+MTS_IC50_anova<-anova(MTS_IC50_model)
 
-MTS_emm_IC50 <- emmeans(
-  MTS_model_IC50,
+MTS_IC50_emm <- emmeans(
+  MTS_IC50_model,
   ~ Concentration | Cellline
 )
 
-MTS_Dunnett_IC50 <- contrast(
-  MTS_emm_IC50,
+MTS_IC50_Dunnett <- contrast(
+  MTS_IC50_emm,
   method = "trt.vs.ctrl",
   ref = 1,
   adjust = "dunnett"
 )
 
-summary(MTS_Dunnett_IC50)
-
-MTS_equivalence_IC50 <- test(
-  MTS_Dunnett_IC50,
+MTS_IC50_equivalence <- test(
+  MTS_IC50_Dunnett,
   delta = 10,
   side = "equivalence",
   adjust = "none"
@@ -209,12 +229,12 @@ MTS_IC50_colours <- c(
 #-----------------------------------------
 # Plotting IC50
 #-----------------------------------------
-MTS_p_IC50_unirradiated <- ggplot(
-  MTS_IC50_plotting %>%
+MTS_IC50_p_unirradiated <- ggplot(
+  MTS_IC50_summary %>%
     filter(Concentration > 0),
   aes(
     x = Concentration,
-    y = mean_rel_Intensity_m,
+    y = mean_rel_Intensity2*100,
     colour = Cellline,
     group = Cellline
   )
@@ -228,11 +248,11 @@ MTS_p_IC50_unirradiated <- ggplot(
   ) +
   geom_errorbar(
     aes(
-      ymin = mean_rel_Intensity_m - sem_rel,
-      ymax = mean_rel_Intensity_m + sem_rel
+      ymin = (mean_rel_Intensity2*100)  - (sem_rel_Intensity*100),
+      ymax = (mean_rel_Intensity2*100)  + (sem_rel_Intensity*100)
     ),
-    width = 0.5,
-    linewidth = 0.5,
+    width =0.5,
+    linewidth = 0.6,
     colour = "black"
   ) +
   geom_point(
@@ -247,7 +267,7 @@ MTS_p_IC50_unirradiated <- ggplot(
     yintercept = 100,
     linetype = "dotted",
     linewidth = 0.5,
-    colour = "grey60"
+    colour = "grey50"
   ) +
   geom_hline(
     yintercept = 50,
@@ -285,7 +305,7 @@ MTS_p_IC50_unirradiated <- ggplot(
     legend.position = "bottom",
     legend.direction = "horizontal",
     legend.text = element_text(size = 7.5),
-    legend.key.width = grid::unit(3, "mm"),
+    legend.key.width = grid::unit(6, "mm"),
     legend.key.height = grid::unit(2.5, "mm"),
     legend.key.spacing.x = grid::unit(1, "mm"),
     legend.spacing.x = grid::unit(0, "mm"),
@@ -295,8 +315,23 @@ MTS_p_IC50_unirradiated <- ggplot(
       r = 10,
       b = 5,
       l = 10
-    )
-  ) +
+    ),
+      axis.title = element_text(
+        size = 12,
+        face = "bold"
+      ),
+      axis.text = element_text(
+        size = 10,
+        colour = "black"
+      ),
+      axis.text.x = element_text(
+        face = "plain",
+        size = 10,
+        colour = "black"
+      ),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank()
+       ) +
   guides(
     fill = "none",
     colour = guide_legend(
@@ -308,9 +343,9 @@ MTS_p_IC50_unirradiated <- ggplot(
     )
   )
 
-MTS_p_IC50_unirradiated <-MTS_p_IC50_unirradiated +
+MTS_IC50_p_unirradiated <-MTS_IC50_p_unirradiated +
   geom_vline(
-    data = MTS_IC50_values %>%
+    data = MTS_IC50_global_model_values %>%
       filter(!is.na(Estimate)),
     aes(
       xintercept = Estimate,
@@ -323,7 +358,7 @@ MTS_p_IC50_unirradiated <-MTS_p_IC50_unirradiated +
   annotate(
     "text",
     x = 0.002,
-    y = 25,
+    y = 45,
     label = paste0(
       "Cell line (IC50)\n",
       MTS_IC50_text
@@ -346,8 +381,8 @@ setwd(file.path(dirs$results, "12_MTS_IC50_AZD1390"))
 
 #1. saving dose response curve
 ggsave(
-  filename = "MTS_IC50_AZD1390.jpeg",
-  plot = MTS_p_IC50_unirradiated,
+  filename = "12_MTS_IC50_AZD1390.jpeg",
+  plot = MTS_IC50_p_unirradiated,
   width = 21*1/3,
   height = 7,
   units = "cm",
@@ -355,8 +390,8 @@ ggsave(
 )
 
 ggsave(
-  filename = "MTS_IC50_AZD1390.pdf",
-  plot = MTS_p_IC50_unirradiated,
+  filename = "12_MTS_IC50_AZD1390.pdf",
+  plot = MTS_IC50_p_unirradiated,
   width = 21*1/3,
   height = 7,
   units = "cm"
@@ -364,29 +399,15 @@ ggsave(
 
 #2. equivalence test
 write.csv(
-  MTS_equivalence_IC50,
-  file = file.path(dirs$results, "12_MTS_IC50_AZD1390", "equivalence_IC50_testresults.csv"),
+  MTS_IC50_equivalence,
+  file = file.path(dirs$results, "12_MTS_IC50_AZD1390", "12_MTS_IC50_equivalence.csv"),
   row.names = FALSE
 )
 
-#3. Dunnett pairs
+#3. ANOVA
 write.csv(
-  MTS_Dunnett_IC50,
-  file = file.path(dirs$results, "12_MTS_IC50_AZD1390", "Dunnett_IC50_testresults.csv"),
-  row.names = FALSE
-)
-
-#4. post hoc analysis
-write.csv(
-  MTS_emm_IC50,
-  file = file.path(dirs$results, "12_MTS_IC50_AZD1390", "emm_IC50_testresults.csv"),
-  row.names = FALSE
-)
-
-#5. ANOVA
-write.csv(
-  MTS_anova_IC50,
-  file = file.path(dirs$results, "12_MTS_IC50_AZD1390", "anova_IC50_testresults.csv"),
+  MTS_IC50_anova,
+  file = file.path(dirs$results, "12_MTS_IC50_AZD1390", "12_MTS_IC50_anova.csv"),
   row.names = FALSE
 )
 
